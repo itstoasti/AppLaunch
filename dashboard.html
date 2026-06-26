@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Screenshot Generator | Magic Mockup</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="dashboard.css">
+    
+    <!-- Libraries for Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+</head>
+
+<body class="dashboard-body">
+    <!-- App Header -->
+    <header class="app-header">
+        <a href="index.html" class="app-header__logo">
+            <svg class="app-header__logo-icon" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+            </svg>
+            Magic Mockup
+        </a>
+        <div class="app-header__actions">
+            <div id="saveStatus" class="save-status">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                <span>Changes Saved</span>
+            </div>
+            <button class="btn btn--secondary btn--sm" id="viewHistoryBtn">History</button>
+            <button class="btn btn--secondary btn--sm" id="newProjectBtn">New Project</button>
+            <button class="btn btn--primary btn--sm" id="aiDesignerBtn"
+                style="background: linear-gradient(135deg, #667eea, #764ba2); border: none;">✨ AI Designer</button>
+            <button class="btn btn--primary btn--sm" id="exportBtn">Export Screenshots</button>
+        </div>
+    </header>
+
+    <div class="app-layout">
+        <!-- Left Sidebar: Settings -->
+        <aside class="sidebar sidebar--left">
+
+            <div class="sidebar__section">
+                <h3 class="sidebar__title">Text Content</h3>
+
+                <div class="form-group">
+                    <label class="form-label">App Name (optional)</label>
+                    <input type="text" class="form-input" id="appName" placeholder="My App">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Headline <span class="hint">(press Enter for new line)</span></label>
+                    <textarea class="form-input form-textarea" id="headline" placeholder="Your headline text"
+                        rows="2">Track your habits</textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Subheadline</label>
+                    <textarea class="form-input form-textarea" id="subheadline" placeholder="Supporting text"
+                        rows="2">Build better routines</textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Text Alignment</label>
+                    <div class="align-selector">
+                        <button class="align-btn" data-align="left">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="3" y1="6" x2="15" y2="6" />
+                                <line x1="3" y1="12" x2="21" y2="12" />
+                                <line x1="3" y1="18" x2="12" y2="18" />
+                            </svg>
+                        </button>
+                        <button class="align-btn active" data-align="center">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="6" y1="6" x2="18" y2="6" />
+                                <line x1="3" y1="12" x2="21" y2="12" />
+                                <line x1="8" y1="18" x2="16" y2="18" />
+                            </svg>
+                        </button>
+                        <button class="align-btn" data-align="right">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="9" y1="6" x2="21" y2="6" />
+                                <line x1="3" y1="12" x2="21" y2="12" />
+                                <line x1="12" y1="18" x2="21" y2="18" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar__section">
+                <h3 class="sidebar__title">Screenshot</h3>
+                <div class="upload-zone" id="uploadZone">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="17,8 12,3 7,8" />
+                        <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                    <p>Drop screenshot here</p>
+                    <span>or click to upload</span>
+                </div>
+                <input type="file" id="screenshotInput" accept="image/*" hidden>
+
+                <!-- Second Screenshot (Hidden by default) -->
+                <div class="upload-zone upload-zone--secondary" id="uploadZone2"
+                    style="display: none; margin-top: 1rem;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="17,8 12,3 7,8" />
+                        <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                    <p>Second Screenshot</p>
+                    <span>(Right Device)</span>
+                </div>
+                <input type="file" id="screenshotInput2" accept="image/*" hidden>
+
+                <!-- Third Screenshot (Hidden by default, for Spread) -->
+                <div class="upload-zone upload-zone--secondary" id="uploadZone3"
+                    style="display: none; margin-top: 1rem;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="17,8 12,3 7,8" />
+                        <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                    <p>Third Screenshot</p>
+                    <span>(Left Device)</span>
+                </div>
+                <input type="file" id="screenshotInput3" accept="image/*" hidden>
+            </div>
+
+            <div class="sidebar__section">
+                <h3 class="sidebar__title">Background</h3>
+
+                <!-- Background Mode Toggle -->
+                <div class="bg-mode-toggle"
+                    style="margin-bottom: 1rem; display: flex; background: #0f0f0f; padding: 4px; border-radius: 8px; border: 1px solid #333;">
+                    <button class="bg-mode-btn active" id="bgModePerScreen"
+                        style="flex: 1; border: none; background: #2a2a2a; color: #fff; padding: 6px; font-size: 0.75rem; border-radius: 6px; cursor: pointer;">Per
+                        Screen</button>
+                    <button class="bg-mode-btn" id="bgModeGlobal"
+                        style="flex: 1; border: none; background: transparent; color: #888; padding: 6px; font-size: 0.75rem; border-radius: 6px; cursor: pointer;">Panorama</button>
+                </div>
+
+                <div id="perScreenBgControls">
+                    <div class="bg-type-selector">
+                        <button class="bg-type-btn active" data-bgtype="solid">Solid</button>
+                        <button class="bg-type-btn" data-bgtype="gradient">Gradient</button>
+                    </div>
+                    <div class="color-picker-row">
+                        <input type="color" id="bgColor1" value="#c8e0f4" class="color-input">
+                        <input type="color" id="bgColor2" value="#a8d0ea" class="color-input">
+                    </div>
+                    <div class="preset-colors">
+                        <button class="preset-color" style="background: #c8e0f4" data-colors="#c8e0f4,#a8d0ea"></button>
+                        <button class="preset-color" style="background: #f5a623" data-colors="#f5a623,#f5a623"></button>
+                        <button class="preset-color" style="background: #ffffff" data-colors="#ffffff,#f5f5f5"></button>
+                        <button class="preset-color" style="background: #1a1a1a" data-colors="#1a1a1a,#0f0f0f"></button>
+                        <button class="preset-color" style="background: linear-gradient(135deg, #667eea, #764ba2)"
+                            data-colors="#667eea,#764ba2"></button>
+                        <button class="preset-color" style="background: linear-gradient(135deg, #f093fb, #f5576c)"
+                            data-colors="#f093fb,#f5576c"></button>
+                        <button class="preset-color" style="background: linear-gradient(135deg, #4facfe, #00f2fe)"
+                            data-colors="#4facfe,#00f2fe"></button>
+                        <button class="preset-color" style="background: linear-gradient(135deg, #43e97b, #38f9d7)"
+                            data-colors="#43e97b,#38f9d7"></button>
+                        <!-- Magic Theme Button -->
+                        <button id="magicThemeBtn" class="preset-color magic-theme-btn"
+                            title="Extract colors from screenshot">
+                            ✨
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Global Panorama Controls (Hidden by default) -->
+                <div id="globalBgControls" style="display: none;">
+                    <div class="upload-zone" id="globalBgUploadZone" style="border-style: dashed; padding: 1rem;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            style="width: 24px; height: 24px; margin-bottom: 0.5rem;">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                            <polyline points="21 15 16 10 5 21"></polyline>
+                        </svg>
+                        <p style="font-size: 0.75rem;">Upload Panoramic Image</p>
+                        <span style="font-size: 0.65rem;">(Wide image recommended)</span>
+                    </div>
+                    <input type="file" id="globalBgInput" accept="image/*" hidden>
+
+                    <div style="margin-top: 1rem;">
+                        <label class="form-label">Blur Amount</label>
+                        <input type="range" id="globalBgBlur" min="0" max="20" value="0" class="form-range">
+                    </div>
+                    <div style="margin-top: 0.5rem;">
+                        <label class="form-label">Overlay Opacity</label>
+                        <input type="range" id="globalBgOverlay" min="0" max="80" value="0" class="form-range">
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar__section">
+                <h3 class="sidebar__title">Text Style</h3>
+                <div class="form-group">
+                    <label class="form-label">Headline Size</label>
+                    <input type="range" id="fontSize" min="28" max="72" value="48" class="form-range">
+                    <span id="fontSizeValue">48px</span>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Text Color</label>
+                    <input type="color" id="textColor" value="#1a1a1a" class="color-input color-input--full">
+                </div>
+                <!-- Text Position Control -->
+                <div class="form-group">
+                    <label class="form-label">Text Position (Vertical)</label>
+                    <input type="range" id="textPosition" min="-40" max="40" value="0" class="form-range">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Font Weight</label>
+                    <select id="fontWeight" class="form-select">
+                        <option value="500">Medium</option>
+                        <option value="600">Semi-Bold</option>
+                        <option value="700" selected>Bold</option>
+                        <option value="800">Extra Bold</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="sidebar__section">
+                <h3 class="sidebar__title">Device</h3>
+                <div class="form-group">
+                    <label class="form-label">Frame Style</label>
+                    <select id="deviceFrame" class="form-select">
+                        <option value="iphone15pro">iPhone 15 Pro</option>
+                        <option value="iphone15promax">iPhone 15 Pro Max</option>
+                        <option value="iphone-flat">iPhone (Flat)</option>
+                        <option value="android">Android</option>
+                        <option value="none">No Frame</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Device Scale</label>
+                    <input type="range" id="deviceScale" min="40" max="100" value="70" class="form-range">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Device Position (Vertical)</label>
+                    <input type="range" id="devicePosition" min="-30" max="30" value="0" class="form-range">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Device Rotation</label>
+                    <input type="range" id="deviceRotation" min="-45" max="45" value="0" class="form-range">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Shadow</label>
+                    <select id="deviceShadow" class="form-select">
+                        <option value="none">None</option>
+                        <option value="small">Small</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="large">Large</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Profile Card (Bottom of Sidebar) -->
+            <div class="sidebar-profile">
+                <div class="profile-card">
+                    <div class="profile-avatar">
+                        <span>DF</span>
+                    </div>
+                    <div class="profile-info">
+                        <span class="profile-name">Dean Fields</span>
+                        <span class="profile-plan">Pro Plan</span>
+                    </div>
+                    <button class="profile-settings-btn" title="Settings">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path
+                                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+                            </path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Canvas Area -->
+        <main class="canvas-area">
+            <!-- View Toggle -->
+            <div class="view-toggle">
+                <button class="view-toggle__btn active" id="editViewBtn">Edit View</button>
+                <button class="view-toggle__btn" id="previewViewBtn">App Store Preview</button>
+            </div>
+
+            <!-- Single Edit View -->
+            <div class="canvas-container" id="editView">
+                <div class="screenshot-preview" id="screenshotPreview">
+                    <canvas id="previewCanvas" width="1290" height="2796"></canvas>
+                </div>
+            </div>
+
+            <!-- App Store Preview (All Screenshots) -->
+            <div class="appstore-preview" id="appstorePreview" style="display: none;">
+                <button class="gallery-nav-btn gallery-nav-btn--left" id="scrollPreviewLeft">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                </button>
+                <div class="appstore-preview__scroll">
+                    <div class="appstore-preview__item" data-screen="1">
+                        <canvas class="appstore-canvas" width="1290" height="2796"></canvas>
+                        <div class="preview-controls">
+                            <button class="preview-btn delete-screen" data-index="0" title="Delete Screen">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                            </button>
+                            <button class="preview-btn move-left" data-index="0" title="Move Left">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <polyline points="15 18 9 12 15 6"></polyline>
+                                </svg>
+                            </button>
+                            <span class="appstore-preview__label">#1</span>
+                            <button class="preview-btn move-right" data-index="0" title="Move Right">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="appstore-preview__item" data-screen="2">
+                        <canvas class="appstore-canvas" width="1290" height="2796"></canvas>
+                        <div class="preview-controls">
+                            <button class="preview-btn delete-screen" data-index="1" title="Delete Screen">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                            </button>
+                            <button class="preview-btn move-left" data-index="1" title="Move Left">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <polyline points="15 18 9 12 15 6"></polyline>
+                                </svg>
+                            </button>
+                            <span class="appstore-preview__label">#2</span>
+                            <button class="preview-btn move-right" data-index="1" title="Move Right">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="appstore-preview__item" data-screen="3">
+                        <canvas class="appstore-canvas" width="1290" height="2796"></canvas>
+                        <div class="preview-controls">
+                            <button class="preview-btn delete-screen" data-index="2" title="Delete Screen">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                            </button>
+                            <button class="preview-btn move-left" data-index="2" title="Move Left">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <polyline points="15 18 9 12 15 6"></polyline>
+                                </svg>
+                            </button>
+                            <span class="appstore-preview__label">#3</span>
+                            <button class="preview-btn move-right" data-index="2" title="Move Right">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="appstore-preview__item" data-screen="4">
+                        <canvas class="appstore-canvas" width="1290" height="2796"></canvas>
+                        <div class="preview-controls">
+                            <button class="preview-btn delete-screen" data-index="3" title="Delete Screen">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                            </button>
+                            <button class="preview-btn move-left" data-index="3" title="Move Left">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <polyline points="15 18 9 12 15 6"></polyline>
+                                </svg>
+                            </button>
+                            <span class="appstore-preview__label">#4</span>
+                            <button class="preview-btn move-right" data-index="3" title="Move Right">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="appstore-preview__item" data-screen="5">
+                        <canvas class="appstore-canvas" width="1290" height="2796"></canvas>
+                        <div class="preview-controls">
+                            <button class="preview-btn delete-screen" data-index="4" title="Delete Screen">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                            </button>
+                            <button class="preview-btn move-left" data-index="4" title="Move Left">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <polyline points="15 18 9 12 15 6"></polyline>
+                                </svg>
+                            </button>
+                            <span class="appstore-preview__label">#5</span>
+                            <button class="preview-btn move-right" data-index="4" title="Move Right">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="appstore-preview__item" data-screen="6" style="display: none;">
+                        <canvas class="appstore-canvas" width="1290" height="2796"></canvas>
+                        <div class="preview-controls">
+                            <button class="preview-btn delete-screen" data-index="5" title="Delete Screen">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                            </button>
+                            <button class="preview-btn move-left" data-index="5" title="Move Left">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="15 18 9 12 15 6"></polyline>
+                                </svg>
+                            </button>
+                            <span class="appstore-preview__label">#6</span>
+                            <button class="preview-btn move-right" data-index="5" title="Move Right">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="appstore-preview__item" data-screen="7" style="display: none;">
+                        <canvas class="appstore-canvas" width="1290" height="2796"></canvas>
+                        <div class="preview-controls">
+                            <button class="preview-btn delete-screen" data-index="6" title="Delete Screen">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                            </button>
+                            <button class="preview-btn move-left" data-index="6" title="Move Left">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="15 18 9 12 15 6"></polyline>
+                                </svg>
+                            </button>
+                            <span class="appstore-preview__label">#7</span>
+                            <button class="preview-btn move-right" data-index="6" title="Move Right">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="appstore-preview__item" data-screen="8" style="display: none;">
+                        <canvas class="appstore-canvas" width="1290" height="2796"></canvas>
+                        <div class="preview-controls">
+                            <button class="preview-btn delete-screen" data-index="7" title="Delete Screen">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                            </button>
+                            <button class="preview-btn move-left" data-index="7" title="Move Left">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="15 18 9 12 15 6"></polyline>
+                                </svg>
+                            </button>
+                            <span class="appstore-preview__label">#8</span>
+                            <button class="preview-btn move-right" data-index="7" title="Move Right">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="appstore-preview__item" data-screen="9" style="display: none;">
+                        <canvas class="appstore-canvas" width="1290" height="2796"></canvas>
+                        <div class="preview-controls">
+                            <button class="preview-btn delete-screen" data-index="8" title="Delete Screen">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                            </button>
+                            <button class="preview-btn move-left" data-index="8" title="Move Left">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="15 18 9 12 15 6"></polyline>
+                                </svg>
+                            </button>
+                            <span class="appstore-preview__label">#9</span>
+                            <button class="preview-btn move-right" data-index="8" title="Move Right">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="appstore-preview__item" data-screen="10" style="display: none;">
+                        <canvas class="appstore-canvas" width="1290" height="2796"></canvas>
+                        <div class="preview-controls">
+                            <button class="preview-btn delete-screen" data-index="9" title="Delete Screen">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                            </button>
+                            <button class="preview-btn move-left" data-index="9" title="Move Left">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="15 18 9 12 15 6"></polyline>
+                                </svg>
+                            </button>
+                            <span class="appstore-preview__label">#10</span>
+                            <button class="preview-btn move-right" data-index="9" title="Move Right">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <button class="gallery-nav-btn gallery-nav-btn--right" id="scrollPreviewRight">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="canvas-toolbar">
+                <div class="screen-nav">
+                    <button class="screen-nav__btn active" data-screen="1">1</button>
+                    <button class="screen-nav__btn" data-screen="2">2</button>
+                    <button class="screen-nav__btn" data-screen="3">3</button>
+                    <button class="screen-nav__btn" data-screen="4">4</button>
+                    <button class="screen-nav__btn" data-screen="5">5</button>
+                    <button class="screen-nav__btn" data-screen="6" style="display: none;">6</button>
+                    <button class="screen-nav__btn" data-screen="7" style="display: none;">7</button>
+                    <button class="screen-nav__btn" data-screen="8" style="display: none;">8</button>
+                    <button class="screen-nav__btn" data-screen="9" style="display: none;">9</button>
+                    <button class="screen-nav__btn" data-screen="10" style="display: none;">10</button>
+                    <button class="screen-nav__btn screen-nav__btn--add">+</button>
+                </div>
+                <div class="zoom-controls">
+                    <button class="zoom-btn" id="zoomOut">−</button>
+                    <span id="zoomLevel">100%</span>
+                    <button class="zoom-btn" id="zoomIn">+</button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Right Sidebar: Templates -->
+        <aside class="sidebar sidebar--right">
+            <div class="sidebar__section">
+                <h3 class="sidebar__title">Layout Templates</h3>
+                <details open class="sidebar-category">
+                    <summary class="sidebar-category-title">Single Device</summary>
+                    <div class="template-grid template-grid--layouts">
+                        <button class="template-card-layout active" data-template="minimal-top">
+                            <div class="template-layout-preview tpl-minimal-top">
+                                <div class="tpl-text">Aa</div>
+                                <div class="tpl-device"></div>
+                            </div>
+                            <span>Minimal Top</span>
+                        </button>
+                        <button class="template-card-layout" data-template="big-screen">
+                            <div class="template-layout-preview tpl-big-screen">
+                                <div class="tpl-device-zoomed"></div>
+                            </div>
+                            <span>Big Screen</span>
+                        </button>
+                        <button class="template-card-layout" data-template="centered-bottom">
+                            <div class="template-layout-preview tpl-centered-bottom">
+                                <div class="tpl-device"></div>
+                                <div class="tpl-text">Aa</div>
+                            </div>
+                            <span>Centered</span>
+                        </button>
+                        <button class="template-card-layout" data-template="tilted-shadow">
+                            <div class="template-layout-preview tpl-tilted">
+                                <div class="tpl-text">Aa</div>
+                                <div class="tpl-device-tilted"></div>
+                            </div>
+                            <span>Tilted</span>
+                        </button>
+                        <button class="template-card-layout" data-template="hero-left">
+                            <div class="template-layout-preview tpl-hero-left">
+                                <div class="tpl-text-block"></div>
+                                <div class="tpl-device"></div>
+                            </div>
+                            <span>Hero Left</span>
+                        </button>
+                        <button class="template-card-layout" data-template="hero-right">
+                            <div class="template-layout-preview tpl-hero-right">
+                                <div class="tpl-text-block"></div>
+                                <div class="tpl-device"></div>
+                            </div>
+                            <span>Hero Right</span>
+                        </button>
+                    </div>
+                </details>
+
+                <details class="sidebar-category">
+                    <summary class="sidebar-category-title">Multiple Devices</summary>
+                    <div class="template-grid template-grid--layouts">
+                        <button class="template-card-layout" data-template="multi-screen">
+                            <div class="template-layout-preview tpl-multi">
+                                <div class="tpl-device-small"></div>
+                                <div class="tpl-device-small"></div>
+                            </div>
+                            <span>Multi Screen</span>
+                        </button>
+                        <button class="template-card-layout" data-template="multi-dynamic">
+                            <div class="template-layout-preview tpl-multi-dynamic">
+                                <div class="tpl-device-small-tilted"></div>
+                                <div class="tpl-device-small-tilted"></div>
+                            </div>
+                            <span>Dynamic Pair</span>
+                        </button>
+                        <button class="template-card-layout" data-template="spread">
+                            <div class="template-layout-preview tpl-spread">
+                                <div class="tpl-device-small-spread"></div>
+                                <div class="tpl-device-small-spread center"></div>
+                                <div class="tpl-device-small-spread"></div>
+                            </div>
+                            <span>Spread</span>
+                        </button>
+                    </div>
+                </details>
+
+                <details class="sidebar-category">
+                    <summary class="sidebar-category-title">Panorama</summary>
+                    <div class="template-grid template-grid--layouts">
+                        <button class="template-card-layout" data-template="panorama-left">
+                            <div class="template-layout-preview tpl-panorama-left">
+                                <div class="tpl-device-half"></div>
+                            </div>
+                            <span>Panorama Left</span>
+                        </button>
+                        <button class="template-card-layout" data-template="panorama-right">
+                            <div class="template-layout-preview tpl-panorama-right">
+                                <div class="tpl-device-half"></div>
+                            </div>
+                            <span>Panorama Right</span>
+                        </button>
+                        <button class="template-card-layout" data-template="panorama-tilted-left">
+                            <div class="template-layout-preview tpl-panorama-tilted-left">
+                                <div class="tpl-device-half-tilted"></div>
+                            </div>
+                            <span>Tilt Pan L</span>
+                        </button>
+                        <button class="template-card-layout" data-template="panorama-tilted-right">
+                            <div class="template-layout-preview tpl-panorama-tilted-right">
+                                <div class="tpl-device-half-tilted"></div>
+                            </div>
+                            <span>Tilt Pan R</span>
+                        </button>
+                    </div>
+                </details>
+            </div>
+
+            <div class="sidebar__section">
+                <h3 class="sidebar__title">Color Themes</h3>
+                <div class="theme-grid">
+                    <button class="theme-btn active" data-theme="light-blue" style="background: #c8e0f4;">
+                        <span style="color: #1a1a1a;">Aa</span>
+                    </button>
+                    <button class="theme-btn" data-theme="orange" style="background: #f5a623;">
+                        <span style="color: #1a1a1a;">Aa</span>
+                    </button>
+                    <button class="theme-btn" data-theme="white" style="background: #ffffff; border: 1px solid #ddd;">
+                        <span style="color: #1a1a1a;">Aa</span>
+                    </button>
+                    <button class="theme-btn" data-theme="dark" style="background: #1a1a1a;">
+                        <span style="color: #ffffff;">Aa</span>
+                    </button>
+                    <button class="theme-btn" data-theme="purple"
+                        style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                        <span style="color: #ffffff;">Aa</span>
+                    </button>
+                    <button class="theme-btn" data-theme="pink"
+                        style="background: linear-gradient(135deg, #f093fb, #f5576c);">
+                        <span style="color: #ffffff;">Aa</span>
+                    </button>
+                    <button class="theme-btn" data-theme="blue"
+                        style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
+                        <span style="color: #ffffff;">Aa</span>
+                    </button>
+                    <button class="theme-btn" data-theme="green"
+                        style="background: linear-gradient(135deg, #43e97b, #38f9d7);">
+                        <span style="color: #1a1a1a;">Aa</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="sidebar__section">
+                <h3 class="sidebar__title">Extras</h3>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="showAppRating">
+                        <span>Show App Store Rating</span>
+                    </label>
+                </div>
+                <div class="form-group" id="ratingGroup" style="display: none;">
+                    <label class="form-label">Rating</label>
+                    <input type="text" class="form-input" id="appRating" value="4.8" placeholder="4.8">
+
+                    <div style="margin-top: 10px;">
+                        <label class="form-label" style="font-size: 0.8em;">Position X</label>
+                        <input type="range" class="slider" id="ratingX" min="-300" max="300" value="0">
+                    </div>
+                    <div style="margin-top: 5px;">
+                        <label class="form-label" style="font-size: 0.8em;">Position Y</label>
+                        <input type="range" class="slider" id="ratingY" min="-300" max="300" value="0">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="showCategoryPill">
+                        <span>Show Category Pill</span>
+                    </label>
+                </div>
+                <div class="form-group" id="categoryGroup" style="display: none;">
+                    <label class="form-label">Category Label</label>
+                    <input type="text" class="form-input" id="categoryLabel" value="Plan" placeholder="Category">
+
+                    <div style="margin-top: 10px;">
+                        <label class="form-label" style="font-size: 0.8em;">Position X</label>
+                        <input type="range" class="slider" id="categoryX" min="-300" max="300" value="0">
+                    </div>
+                    <div style="margin-top: 5px;">
+                        <label class="form-label" style="font-size: 0.8em;">Position Y</label>
+                        <input type="range" class="slider" id="categoryY" min="-300" max="300" value="0">
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar__section">
+                <h3 class="sidebar__title">Export Settings</h3>
+                <div class="form-group">
+                    <label class="form-label">Platform</label>
+                    <select id="exportPlatform" class="form-select">
+                        <option value="ios">iOS (App Store)</option>
+                        <option value="android">Android (Play Store)</option>
+                        <option value="both">Both</option>
+                    </select>
+                </div>
+                <div class="export-sizes">
+                    <div class="export-size">
+                        <span>6.7" Display</span>
+                        <span class="size-dim">1290 × 2796</span>
+                    </div>
+                    <div class="export-size">
+                        <span>6.5" Display</span>
+                        <span class="size-dim">1284 × 2778</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- AI Modal -->
+    <div class="modal" id="aiModal">
+        <div class="modal__backdrop"></div>
+        <div class="modal__content">
+            <h2 class="modal__title">✨ AI Smart Designer</h2>
+            <p class="modal__text">Enter your app details and let Gemini generate your screenshots.</p>
+
+            <!-- Grid Layout -->
+            <div class="modal-grid">
+                <!-- Left Column -->
+                <div class="modal-col">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">App Icon</label>
+                        <div class="upload-btn-row" id="appIconUploadModalZone">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                <polyline points="21 15 16 10 5 21"></polyline>
+                            </svg>
+                            <span>Upload Icon</span>
+                        </div>
+                        <input type="file" id="appIconInputModal" accept="image/*" hidden>
+                    </div>
+                </div>
+
+                <!-- Right Column -->
+                <div class="modal-col">
+                    <div class="form-group"
+                        style="margin-bottom: 0; height: 100%; display: flex; flex-direction: column;">
+                        <label class="form-label">Screenshots</label>
+                        <div class="upload-btn-row" id="bulkScreenshotsZone" style="flex: 1;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="17 8 12 3 7 8"></polyline>
+                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                            <span>Select Files (Bulk)</span>
+                        </div>
+                        <input type="file" id="bulkScreenshotsInput" accept="image/*" multiple hidden>
+
+                        <!-- Mini Thumbnails row -->
+                        <div id="bulkPreviewContainer" class="modal-thumbnails"></div>
+                    </div>
+                </div>
+
+                <!-- Full Width Bottom -->
+                <div class="modal-full-width">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">App Description</label>
+                        <textarea class="form-input form-textarea short" id="aiAppDescription" rows="2"
+                            placeholder="Describe your app features and vibe..."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal__actions">
+                <button class="btn btn--secondary" id="closeAiModal">Cancel</button>
+                <button class="btn btn--primary" id="generateMagicConfigBtn"
+                    style="background: linear-gradient(135deg, #667eea, #764ba2); border: none;">
+                    Create Magic
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Modal -->
+    <div class="modal" id="exportModal">
+        <div class="modal__backdrop"></div>
+        <div class="modal__content">
+            <h2 class="modal__title">Export Screenshots</h2>
+            <p class="modal__description">Your screenshots are ready to download.</p>
+
+            <div class="export-options">
+                <label class="export-option">
+                    <input type="checkbox" checked>
+                    <span>iPhone 6.7" (1290 × 2796)</span>
+                </label>
+                <label class="export-option">
+                    <input type="checkbox" checked>
+                    <span>iPhone 6.5" (1284 × 2778)</span>
+                </label>
+                <label class="export-option">
+                    <input type="checkbox" checked>
+                    <span>iPhone 5.5" (1242 × 2208)</span>
+                </label>
+            </div>
+
+            <div class="modal__actions">
+                <button class="btn btn--secondary" id="cancelExport">Cancel</button>
+                <button class="btn btn--primary" id="downloadExport">Download PNG</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Settings Modal -->
+    <div class="modal" id="profileSettingsModal">
+        <div class="modal__backdrop"></div>
+        <div class="modal__content">
+            <h2 class="modal__title">Profile Settings</h2>
+            <p class="modal__description">Manage your account and API configurations.</p>
+
+            <div class="form-group">
+                <label class="form-label">Gemini API Key</label>
+                <input type="password" class="form-input" id="geminiApiKey" placeholder="Paste your Gemini API Key">
+                <span class="hint">Required for AI features. Key is stored locally.</span>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Gemini Model ID</label>
+                <input type="text" class="form-input" id="geminiModelId" placeholder="gemini-flash-latest" value="gemini-flash-latest">
+                <span class="hint">Enter a specific model version (e.g., gemini-2.0-flash, gemini-1.5-pro).</span>
+            </div>
+
+            <div class="modal__actions">
+                <button class="btn btn--secondary" id="closeProfileSettings">Close</button>
+                <button class="btn btn--primary" id="saveProfileSettings">Save Settings</button>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    <!-- New Project Confirmation Modal -->
+    <div class="modal" id="newProjectModal">
+        <div class="modal__backdrop"></div>
+        <div class="modal__content" style="max-width: 400px; text-align: center;">
+            <h2 class="modal__title">Start New Project?</h2>
+            <p class="modal__description">All unsaved changes will be lost.</p>
+
+            <div class="modal__actions">
+                <button class="btn btn--secondary" id="cancelNewProject">Cancel</button>
+                <button class="btn btn--primary" id="confirmNewProject"
+                    style="background: #ef4444; border-color: #ef4444; color: white;">
+                    Yes, Start New
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modern Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <h3 class="loading-title">Creating Magic...</h3>
+            <p class="loading-subtitle">Designing your screenshots with AI</p>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Batch Text Editor Modal -->
+    <div class="modal" id="textEditorModal">
+        <div class="modal__backdrop"></div>
+        <div class="modal__content" style="max-width: 1000px; width: 95%;">
+            <div class="modal__header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h2 class="modal__title" style="margin: 0; text-align: left;">Batch Content Editor</h2>
+                <button class="btn btn--primary btn--sm" id="saveAllText">Save All Changes</button>
+            </div>
+            <p class="modal__description" style="text-align: left; margin-bottom: 1rem;">Edit headlines and subheadlines for all screens in one place.</p>
+            
+            <div id="textEditorList" style="display: flex; flex-direction: column; gap: 1rem; max-height: 60vh; overflow-y: auto; padding-right: 1rem;">
+                <!-- Content rows injected here -->
+            </div>
+            
+            <div class="modal__actions">
+                <button class="btn btn--outline" id="closeTextEditor">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="historyModal">
+        <div class="modal__backdrop"></div>
+        <div class="modal__content" style="max-width: 800px;">
+            <div class="modal__header">
+                <h3 class="modal__title">Generation History</h3>
+                <button class="modal__close" id="closeHistoryModal">&times;</button>
+            </div>
+            <div class="modal__body">
+                <p class="hint" style="margin-bottom: 1rem;">View and restore previously generated collections.</p>
+                <div id="historyList" class="history-list">
+                    <!-- History items will be injected here -->
+                    <div class="empty-state">No history yet. Generate something with Magic Designer!</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="dashboard.js"></script>
+</body>
+
+</html>
