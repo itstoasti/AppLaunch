@@ -785,6 +785,24 @@
                 </span>
             </div>
 
+            <!-- URL Auto-Import -->
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label class="form-label">Auto-Import from Website or GitHub <span class="hint" style="color: #a1a1aa; font-weight: 400;">(optional)</span></label>
+                <div style="display: flex; gap: 0.5rem;">
+                    <input type="url" class="form-input" id="smartAppUrl" placeholder="https://github.com/user/repo or https://myapp.com" style="flex: 1;">
+                    <button type="button" class="btn btn--secondary btn--sm" id="smartFetchUrlBtn" style="white-space: nowrap; display: flex; align-items: center; gap: 0.4rem; padding: 0.6rem 1rem;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 15px; height: 15px;">
+                            <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            <path d="M9 12l2 2 4-4"></path>
+                        </svg>
+                        <span>Fetch Info</span>
+                    </button>
+                </div>
+                <span class="hint" id="smartUrlStatus" style="display: block; margin-top: 0.4rem; color: #a1a1aa; font-size: 0.75rem;">
+                    Paste a GitHub or website URL to automatically extract your app name, tagline, features, and icon.
+                </span>
+            </div>
+
             <!-- Grid Layout -->
             <div class="modal-grid">
                 <!-- Left Column: App Icon -->
@@ -918,7 +936,23 @@
         <div class="modal__backdrop"></div>
         <div class="modal__content">
             <h2 class="modal__title">✨ AI Smart Designer</h2>
-            <p class="modal__text">Enter your app details and let Gemini generate your screenshots.</p>
+            <!-- URL Auto-Import -->
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label class="form-label">Auto-Import from Website or GitHub <span class="hint" style="color: #a1a1aa; font-weight: 400;">(optional)</span></label>
+                <div style="display: flex; gap: 0.5rem;">
+                    <input type="url" class="form-input" id="aiAppUrl" placeholder="https://github.com/user/repo or https://myapp.com" style="flex: 1;">
+                    <button type="button" class="btn btn--secondary btn--sm" id="aiFetchUrlBtn" style="white-space: nowrap; display: flex; align-items: center; gap: 0.4rem; padding: 0.6rem 1rem;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 15px; height: 15px;">
+                            <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            <path d="M9 12l2 2 4-4"></path>
+                        </svg>
+                        <span>Fetch Info</span>
+                    </button>
+                </div>
+                <span class="hint" id="aiUrlStatus" style="display: block; margin-top: 0.4rem; color: #a1a1aa; font-size: 0.75rem;">
+                    Paste a link to automatically fill your app description, features, and brand icon for AI design.
+                </span>
+            </div>
 
             <!-- Grid Layout -->
             <div class="modal-grid">

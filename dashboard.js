@@ -1016,6 +1016,27 @@ class ScreenshotGenerator {
             });
         }
 
+        // URL Auto-Import Handlers
+        document.getElementById('aiFetchUrlBtn')?.addEventListener('click', () => {
+            this.handleUrlImport('ai');
+        });
+        document.getElementById('aiAppUrl')?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.handleUrlImport('ai');
+            }
+        });
+
+        document.getElementById('smartFetchUrlBtn')?.addEventListener('click', () => {
+            this.handleUrlImport('smart');
+        });
+        document.getElementById('smartAppUrl')?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.handleUrlImport('smart');
+            }
+        });
+
 
 
         // App Store preview item click - switch to that screen
@@ -1688,17 +1709,355 @@ class ScreenshotGenerator {
         };
     }
 
+    /* ========== URL Auto-Import Engine ========== */
+
+    async fetchAppInfoFromUrl(rawUrl) {
+        if (!rawUrl) throw new Error('Please enter a URL');
+
+        let targetUrl = rawUrl.trim();
+        if (!/^https?:\/\//i.test(targetUrl)) {
+            targetUrl = 'https://' + targetUrl;
+        }
+
+        // Check if GitHub Repository URL
+        const ghMatch = targetUrl.match(/(?:https?:\/\/)?(?:www\.)?github\.com\/([^\/]+)\/([^\/\?#]+)/i);
+
+        if (ghMatch) {
+            const owner = ghMatch[1];
+            const repo = ghMatch[2].replace(/\.git$/i, '');
+            return await this.fetchGitHubRepoInfo(owner, repo, targetUrl);
+        }
+
+        // Otherwise standard website / landing page
+        return await this.fetchWebsiteInfo(targetUrl);
+    }
+
+    async fetchGitHubRepoInfo(owner, repo, originalUrl) {
+        // 1. Fetch Repository Details via GitHub REST API (Public, CORS-enabled)
+        let repoData = {};
+        try {
+            const res = await fetch(`https://api.github.com/repos/${owner}/${repo}`);
+            if (res.ok) {
+                repoData = await res.json();
+            }
+        } catch (e) {
+            console.warn('GitHub API fetch failed, trying raw README:', e);
+        }
+
+        // 2. Fetch Raw README (CORS-enabled)
+        let readmeText = '';
+        const branches = ['HEAD', 'main', 'master'];
+        for (const branch of branches) {
+            try {
+                const readmeRes = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/${branch}/README.md`);
+                if (readmeRes.ok) {
+                    readmeText = await readmeRes.text();
+                    break;
+                }
+            } catch (e) {
+                // continue to next branch
+            }
+        }
+
+        // Format clean App Name from repo name
+        const rawName = repoData.name || repo;
+        let appName = rawName
+            .replace(/[-_.]+/g, ' ')
+            .replace(/\b(app|ios|android|mobile|client|web)\b/gi, '')
+            .trim()
+            .split(' ')
+            .filter(Boolean)
+            .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(' ') || rawName;
+
+        let description = repoData.description || '';
+        let features = [];
+        let iconUrl = repoData.owner?.avatar_url || null;
+
+        if (readmeText) {
+            // Find first H1 or headline
+            const titleMatch = readmeText.match(/^#\s+(.+)$/m);
+            if (titleMatch && !appName) {
+                appName = titleMatch[1].trim();
+            }
+
+            // Extract description / intro paragraph
+            const paragraphs = readmeText
+                .split(/\n\s*\n/)
+                .map(p => p.trim())
+                .filter(p => !p.startsWith('#') && !p.startsWith('[!') && !p.startsWith('![') && p.length > 20);
+
+            if (paragraphs.length > 0 && !description) {
+                description = paragraphs[0].replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1').replace(/[`*]/g, '');
+            }
+
+            // Extract features from list items
+            const bulletMatches = readmeText.match(/^[*-]\s+\*\*([^*]+)\*\*[:\s]*(.+)?$/gm) ||
+                readmeText.match(/^[*-]\s+([^:\n]{4,60})$/gm);
+
+            if (bulletMatches) {
+                bulletMatches.slice(0, 5).forEach(m => {
+                    const clean = m.replace(/^[*-]\s+/, '').replace(/\*\*/g, '').trim();
+                    if (clean && clean.length > 3 && clean.length < 60) {
+                        features.push(clean);
+                    }
+                });
+            }
+
+            // Look for logo in README
+            const logoMatch = readmeText.match(/!\[(?:logo|icon)\]\(([^)]+)\)/i) ||
+                readmeText.match(/<img[^>]+src=["']([^"']*(?:logo|icon)[^"']*)["']/i);
+            if (logoMatch) {
+                let foundLogo = logoMatch[1];
+                if (!/^https?:\/\//i.test(foundLogo)) {
+                    foundLogo = `https://raw.githubusercontent.com/${owner}/${repo}/HEAD/${foundLogo.replace(/^\.\//, '')}`;
+                }
+                iconUrl = foundLogo;
+            }
+        }
+
+        if (!description) {
+            description = `${appName} - Built for seamless and high performance experience.`;
+        }
+
+        const tagline = features[0] || description.split('.')[0] || `The ultimate companion for ${appName}`;
+        if (features.length === 0) {
+            features = ['Fast, Intuitive Design', 'Effortless Workflows', 'Built with Privacy First'];
+        }
+
+        const combinedText = `${appName} ${description} ${features.join(' ')} ${(repoData.topics || []).join(' ')}`.toLowerCase();
+        const category = this.detectCategoryFromText(combinedText);
+
+        return {
+            appName,
+            tagline,
+            description,
+            features: features.slice(0, 4),
+            category,
+            iconUrl,
+            url: originalUrl
+        };
+    }
+
+    async fetchWebsiteInfo(targetUrl) {
+        let title = '';
+        let description = '';
+        let features = [];
+        let iconUrl = null;
+        let domain = '';
+
+        try {
+            const parsedUrl = new URL(targetUrl);
+            domain = parsedUrl.hostname;
+            iconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
+        } catch (e) {
+            // URL parse error
+        }
+
+        // Try Vercel Serverless Function first (when running on HTTP/HTTPS server)
+        let fetchedData = null;
+        if (typeof window !== 'undefined' && window.location?.origin && /^https?:/i.test(window.location.origin)) {
+            try {
+                const apiRes = await fetch(`/api/fetch-url?url=${encodeURIComponent(targetUrl)}`);
+                if (apiRes.ok) {
+                    fetchedData = await apiRes.json();
+                    if (fetchedData.title) title = fetchedData.title;
+                    if (fetchedData.description) description = fetchedData.description;
+                    if (fetchedData.features?.length > 0) features = fetchedData.features;
+                    if (fetchedData.icon) iconUrl = fetchedData.icon;
+                }
+            } catch (e) {
+                // Ignore and fall through to Jina reader
+            }
+        }
+
+        // If local API didn't return title/description, use Jina Reader API (CORS enabled)
+        if (!title || !description) {
+            try {
+                const jinaRes = await fetch(`https://r.jina.ai/${targetUrl}`);
+                if (jinaRes.ok) {
+                    const text = await jinaRes.text();
+
+                    // Parse Title
+                    const titleMatch = text.match(/Title:\s*(.+)/);
+                    if (titleMatch) {
+                        title = titleMatch[1].trim();
+                    }
+
+                    // Parse Description
+                    const mdIndex = text.indexOf('Markdown Content:');
+                    const content = mdIndex !== -1 ? text.slice(mdIndex + 17) : text;
+                    const paragraphs = content
+                        .split(/\n\s*\n/)
+                        .map(p => p.trim().replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1').trim())
+                        .filter(p => p.length > 25 && !p.startsWith('#') && !p.startsWith('!') && !p.startsWith('['));
+
+                    if (paragraphs.length > 0 && !description) {
+                        description = paragraphs[0].replace(/\n+/g, ' ');
+                    }
+
+                    // Parse Headings / Features
+                    const lines = content.split('\n');
+                    for (const line of lines) {
+                        const trimmed = line.trim();
+                        if (trimmed.startsWith('### ') || trimmed.startsWith('## ')) {
+                            const heading = trimmed.replace(/^#+\s*/, '').replace(/[^\w\s&'-]/g, '').trim();
+                            if (heading.length > 3 && heading.length < 50 && !features.includes(heading) &&
+                                !/^(menu|nav|navigation|footer|header|sign in|sign up|log in|pricing|contact)$/i.test(heading)) {
+                                features.push(heading);
+                            }
+                        }
+                    }
+                }
+            } catch (err) {
+                console.warn('Jina reader fetch failed:', err);
+            }
+        }
+
+        // Format clean app name from title
+        let appName = title.split(/[|\-–:•]/)[0].trim() || domain.replace(/^www\./, '').split('.')[0];
+        appName = appName.charAt(0).toUpperCase() + appName.slice(1);
+
+        if (!description) {
+            description = `The modern, powerful way to experience ${appName}.`;
+        }
+
+        const tagline = features[0] || description.split('.')[0] || `Everything you need with ${appName}`;
+        if (features.length === 0) {
+            features = ['Intuitive User Interface', 'Real-Time Performance', 'Streamlined Workflows'];
+        }
+
+        const combinedText = `${appName} ${title} ${description} ${features.join(' ')}`.toLowerCase();
+        const category = this.detectCategoryFromText(combinedText);
+
+        return {
+            appName,
+            tagline,
+            description,
+            features: features.slice(0, 4),
+            category,
+            iconUrl,
+            url: targetUrl
+        };
+    }
+
+    detectCategoryFromText(text) {
+        if (/workout|fitness|gym|health|calorie|training|runner|exercise|sport|diet|meditation|sleep|step/i.test(text)) return 'fitness';
+        if (/budget|finance|money|expense|crypto|invest|bank|wallet|stock|trading|accounting|cash/i.test(text)) return 'finance';
+        if (/habit|task|todo|routine|organize|note|calendar|focus|productivity|schedule|reminder|workflow/i.test(text)) return 'productivity';
+        if (/social|chat|friend|community|message|dating|connect|network|stream|creator|feed/i.test(text)) return 'social';
+        if (/shop|store|product|discount|order|cart|checkout|ecommerce|retail|delivery|food/i.test(text)) return 'ecommerce';
+        if (/learn|study|quiz|course|student|education|lesson|language|school|academic|flashcard/i.test(text)) return 'education';
+        if (/music|video|movie|film|stream|podcast|game|entertainment|play|show|radio/i.test(text)) return 'entertainment';
+        return 'utilities';
+    }
+
+    async handleUrlImport(type, showToastOnSuccess = true) {
+        const isAi = type === 'ai';
+        const urlInput = document.getElementById(isAi ? 'aiAppUrl' : 'smartAppUrl');
+        const btn = document.getElementById(isAi ? 'aiFetchUrlBtn' : 'smartFetchUrlBtn');
+        const statusEl = document.getElementById(isAi ? 'aiUrlStatus' : 'smartUrlStatus');
+
+        const rawUrl = urlInput?.value.trim();
+        if (!rawUrl) {
+            this.showToast('Please enter a website or GitHub URL first', 'error');
+            return null;
+        }
+
+        const originalBtnHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = `<span class="loading-spinner-sm" style="display:inline-block; width:12px; height:12px; border:2px solid #ccc; border-top-color:#fff; border-radius:50%; animation:spin 0.6s linear infinite; margin-right:4px;"></span> Fetching...`;
+        }
+        if (statusEl) {
+            statusEl.textContent = 'Analyzing URL and extracting app details...';
+            statusEl.style.color = '#38bdf8';
+        }
+
+        try {
+            const info = await this.fetchAppInfoFromUrl(rawUrl);
+
+            // 1. Populate AI Modal fields
+            if (isAi) {
+                const descEl = document.getElementById('aiAppDescription');
+                if (descEl) {
+                    descEl.value = `App Name: ${info.appName}\nTagline: ${info.tagline}\nAbout: ${info.description}\nKey Features:\n${info.features.map(f => '- ' + f).join('\n')}`;
+                }
+            } else {
+                // 2. Populate Smart Modal fields
+                const nameEl = document.getElementById('smartAppName');
+                const catEl = document.getElementById('smartAppCategory');
+                const taglineEl = document.getElementById('smartTagline');
+                const f1El = document.getElementById('smartFeature1');
+                const f2El = document.getElementById('smartFeature2');
+                const proofEl = document.getElementById('smartSocialProof');
+
+                if (nameEl) nameEl.value = info.appName;
+                if (catEl && info.category) catEl.value = info.category;
+                if (taglineEl) taglineEl.value = info.tagline;
+                if (f1El && info.features[0]) f1El.value = info.features[0];
+                if (f2El && info.features[1]) f2El.value = info.features[1];
+                if (proofEl && info.features[2]) proofEl.value = info.features[2];
+            }
+
+            // 3. Load App Icon if available and not yet uploaded
+            if (info.iconUrl) {
+                const img = new Image();
+                img.crossOrigin = 'Anonymous';
+                img.onload = () => {
+                    this.settings.appIcon = img;
+                    const aiIconZone = document.getElementById('appIconUploadModalZone');
+                    const smartIconZone = document.getElementById('smartAppIconUploadZone');
+                    if (aiIconZone) aiIconZone.innerHTML = `<img src="${info.iconUrl}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 12px;">`;
+                    if (smartIconZone) smartIconZone.innerHTML = `<img src="${info.iconUrl}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 12px;">`;
+                };
+                img.src = info.iconUrl;
+            }
+
+            if (statusEl) {
+                statusEl.textContent = `✓ Imported: ${info.appName} (${info.category}) with ${info.features.length} features!`;
+                statusEl.style.color = '#34d399';
+            }
+
+            if (showToastOnSuccess) {
+                this.showToast(`Imported info for ${info.appName}!`, 'success');
+            }
+
+            return info;
+        } catch (err) {
+            console.error('URL Import error:', err);
+            if (statusEl) {
+                statusEl.textContent = `Failed to fetch: ${err.message}`;
+                statusEl.style.color = '#f87171';
+            }
+            this.showToast(`URL Import Failed: ${err.message}`, 'error');
+            return null;
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalBtnHtml;
+            }
+        }
+    }
+
     async generateMagicConfig() {
         // Use the key loaded in constructor or updated via settings
         const apiKey = this.geminiApiKey;
-        const description = document.getElementById('aiAppDescription').value.trim();
+        const urlVal = document.getElementById('aiAppUrl')?.value.trim();
+        let description = document.getElementById('aiAppDescription')?.value.trim();
+
+        // If URL provided but description empty, auto-fetch from URL first
+        if (urlVal && !description) {
+            await this.handleUrlImport('ai', false);
+            description = document.getElementById('aiAppDescription')?.value.trim();
+        }
 
         if (!apiKey) {
             this.showToast('Please configure your Gemini API Key in Profile Settings', 'error');
             return;
         }
         if (!description) {
-            alert('Please enter an app description');
+            alert('Please enter an app description or import from URL');
             return;
         }
 
@@ -1871,8 +2230,16 @@ class ScreenshotGenerator {
         }
     }
 
-    generateSmartConfig() {
-        const appNameInput = document.getElementById('smartAppName')?.value.trim();
+    async generateSmartConfig() {
+        const urlVal = document.getElementById('smartAppUrl')?.value.trim();
+        let appNameInput = document.getElementById('smartAppName')?.value.trim();
+
+        // If URL is provided but app name/tagline empty, auto-import from URL first
+        if (urlVal && !appNameInput) {
+            await this.handleUrlImport('smart', false);
+            appNameInput = document.getElementById('smartAppName')?.value.trim();
+        }
+
         const categoryKey = document.getElementById('smartAppCategory')?.value || 'productivity';
         const storyFlowKey = document.getElementById('smartStoryFlow')?.value || 'classic';
         const colorStyle = document.getElementById('smartColorStyle')?.value || 'auto';
