@@ -1412,7 +1412,13 @@
     display: flex;
     gap: 1rem;
     justify-content: stretch;
-    margin-top: 2rem;
+    margin-top: 1.5rem;
+    position: sticky;
+    bottom: -2rem;
+    background: #18181b;
+    padding: 1rem 0 0.5rem 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    z-index: 10;
 }
 
 .modal__actions .btn {

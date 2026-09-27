@@ -1940,6 +1940,12 @@ class ScreenshotGenerator {
             `).join('');
         }
 
+        const actionBtnId = isAi ? 'aiQuickGenerateBtn' : 'smartQuickGenerateBtn';
+        const actionBtnText = isAi ? '✨ Generate Magic Screenshots with AI' : '⚡️ Generate 5 Screenshots with Extracted Features';
+        const actionBtnGradient = isAi
+            ? 'background: linear-gradient(135deg, #667eea, #764ba2);'
+            : 'background: linear-gradient(135deg, #10b981, #059669);';
+
         container.style.display = 'block';
         container.innerHTML = `
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
@@ -1952,7 +1958,23 @@ class ScreenshotGenerator {
             </div>
             ${info.description ? `<div style="font-size: 0.75rem; color: #d4d4d8; margin-bottom: 6px; line-height: 1.4;"><strong>Hook:</strong> ${info.hookHeadline || info.description}</div>` : ''}
             ${featureChips}
+            <button type="button" class="btn btn--primary" id="${actionBtnId}" style="margin-top: 10px; width: 100%; ${actionBtnGradient} border: none; font-size: 0.85rem; font-weight: 700; padding: 0.65rem 1rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); display: flex; align-items: center; justify-content: center; gap: 0.4rem; cursor: pointer;">
+                <span>${actionBtnText}</span>
+            </button>
         `;
+
+        // Wire up quick generate button
+        const quickBtn = document.getElementById(actionBtnId);
+        if (quickBtn) {
+            quickBtn.onclick = (e) => {
+                e.preventDefault();
+                if (isAi) {
+                    this.generateMagicConfig();
+                } else {
+                    this.generateSmartConfig();
+                }
+            };
+        }
     }
 
     async handleUrlImport(type, showToastOnSuccess = true) {
