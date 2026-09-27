@@ -39,6 +39,8 @@
             </div>
             <button class="btn btn--secondary btn--sm" id="viewHistoryBtn">History</button>
             <button class="btn btn--secondary btn--sm" id="newProjectBtn">New Project</button>
+            <button class="btn btn--primary btn--sm" id="smartDesignerBtn"
+                style="background: linear-gradient(135deg, #10b981, #059669); border: none;">⚡️ Auto Designer</button>
             <button class="btn btn--primary btn--sm" id="aiDesignerBtn"
                 style="background: linear-gradient(135deg, #667eea, #764ba2); border: none;">✨ AI Designer</button>
             <button class="btn btn--primary btn--sm" id="exportBtn">Export Screenshots</button>
@@ -767,6 +769,148 @@
                 </div>
             </div>
         </aside>
+    </div>
+
+    <!-- Smart Designer Modal (Non-AI Instant Workflow) -->
+    <div class="modal" id="smartModal">
+        <div class="modal__backdrop"></div>
+        <div class="modal__content">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                <div>
+                    <h2 class="modal__title" style="background: linear-gradient(135deg, #34d399 0%, #10b981 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">⚡️ Smart Auto Designer</h2>
+                    <p class="modal__text">Generate a cohesive 5-screen App Store story instantly. Zero AI key needed, 100% private & instant.</p>
+                </div>
+                <span style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 0.75rem; font-weight: 600; padding: 4px 10px; border-radius: 999px; border: 1px solid rgba(16, 185, 129, 0.3); white-space: nowrap;">
+                    No API Key Needed
+                </span>
+            </div>
+
+            <!-- Grid Layout -->
+            <div class="modal-grid">
+                <!-- Left Column: App Icon -->
+                <div class="modal-col">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">App Icon <span class="hint" style="color: #a1a1aa; font-weight: 400;">(auto-extracts brand colors)</span></label>
+                        <div class="upload-btn-row" id="smartAppIconUploadZone">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                <polyline points="21 15 16 10 5 21"></polyline>
+                            </svg>
+                            <span id="smartAppIconLabel">Upload App Icon</span>
+                        </div>
+                        <input type="file" id="smartAppIconInput" accept="image/*" hidden>
+                    </div>
+                </div>
+
+                <!-- Right Column: Screenshots -->
+                <div class="modal-col">
+                    <div class="form-group" style="margin-bottom: 0; height: 100%; display: flex; flex-direction: column;">
+                        <label class="form-label">Screenshots <span class="hint" style="color: #a1a1aa; font-weight: 400;">(select 1 to 5+ screens)</span></label>
+                        <div class="upload-btn-row" id="smartBulkScreenshotsZone" style="flex: 1;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="17 8 12 3 7 8"></polyline>
+                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                            <span id="smartBulkScreenshotsLabel">Select Files (Bulk)</span>
+                        </div>
+                        <input type="file" id="smartBulkScreenshotsInput" accept="image/*" multiple hidden>
+
+                        <!-- Mini Thumbnails row -->
+                        <div id="smartBulkPreviewContainer" class="modal-thumbnails"></div>
+                    </div>
+                </div>
+
+                <!-- App Name & Category -->
+                <div class="modal-col">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">App Name</label>
+                        <input type="text" class="form-input" id="smartAppName" placeholder="e.g. HabitPulse, ZenFit">
+                    </div>
+                </div>
+
+                <div class="modal-col">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">App Category</label>
+                        <select class="form-input" id="smartAppCategory">
+                            <option value="productivity">Productivity & Habits</option>
+                            <option value="fitness">Health & Fitness</option>
+                            <option value="finance">Finance & Budgeting</option>
+                            <option value="social">Social & Lifestyle</option>
+                            <option value="ecommerce">E-Commerce & Shopping</option>
+                            <option value="education">Education & Learning</option>
+                            <option value="entertainment">Entertainment & Media</option>
+                            <option value="utilities">Utilities & Tools</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Layout Story Flow & Color Theme -->
+                <div class="modal-col">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">Story Flow (Layouts)</label>
+                        <select class="form-input" id="smartStoryFlow">
+                            <option value="classic">Conversion Classic (Tilted → Hero Left → Minimal → Dynamic → Centered)</option>
+                            <option value="panorama">Panorama Hero (Dual-Screen Panorama → Hero Right → Spread → Centered)</option>
+                            <option value="minimal">Clean Minimalist (Minimal Top → Centered → Hero Left → Hero Right → Big Screen)</option>
+                            <option value="power">Feature Showcase (Dynamic Pair → Hero Left → Spread → Tilted → Minimal)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="modal-col">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">Color Style</label>
+                        <select class="form-input" id="smartColorStyle">
+                            <option value="auto">Auto Brand Palette (From App Icon or Screenshot)</option>
+                            <option value="purple">Modern Gradient (Indigo & Violet)</option>
+                            <option value="blue">Ocean Tech (Sky & Azure)</option>
+                            <option value="dark">Midnight Dark (OLED & Slate)</option>
+                            <option value="green">Fresh Emerald (Mint & Teal)</option>
+                            <option value="pink">Vibrant Sunset (Rose & Coral)</option>
+                            <option value="orange">Warm Amber (Gold & Orange)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Optional Details Accordion for Custom Copy -->
+                <div class="modal-full-width" style="margin-top: 0.5rem;">
+                    <details class="sidebar-category" style="background: #202023; border: 1px solid #3f3f46; border-radius: 12px; padding: 0.75rem 1rem;">
+                        <summary style="cursor: pointer; font-size: 0.85rem; font-weight: 600; color: #d4d4d8; outline: none; display: flex; align-items: center; justify-content: space-between;">
+                            <span>✍️ Customize Storyboard Copy (Optional)</span>
+                            <span style="font-size: 0.75rem; color: #a1a1aa; font-weight: normal;">Defaults pre-filled by category</span>
+                        </summary>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.75rem;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label" style="font-size: 0.75rem;">Screen 1: Main Tagline / Hook</label>
+                                <input type="text" class="form-input" id="smartTagline" placeholder="e.g. Build habits that stick">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label" style="font-size: 0.75rem;">Screen 2: Core Feature</label>
+                                <input type="text" class="form-input" id="smartFeature1" placeholder="e.g. Visual streak tracking">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label" style="font-size: 0.75rem;">Screen 3: Secondary Feature</label>
+                                <input type="text" class="form-input" id="smartFeature2" placeholder="e.g. Smart daily reminders">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label" style="font-size: 0.75rem;">Screen 4: Social Proof / Metric</label>
+                                <input type="text" class="form-input" id="smartSocialProof" placeholder="e.g. Trusted by 50,000+ users">
+                            </div>
+                        </div>
+                    </details>
+                </div>
+            </div>
+
+            <div class="modal__actions" style="margin-top: 1.5rem;">
+                <button class="btn btn--secondary" id="closeSmartModal">Cancel</button>
+                <button class="btn btn--primary" id="generateSmartConfigBtn"
+                    style="background: linear-gradient(135deg, #10b981, #059669); border: none;">
+                    ⚡️ Generate 5 Screens Instantly
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- AI Modal -->

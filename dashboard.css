@@ -1354,6 +1354,23 @@
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
 }
 
+.modal__content select.form-input {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23a1a1aa'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 1.1rem;
+    padding-right: 2.5rem;
+    cursor: pointer;
+}
+
+.modal__content select.form-input option {
+    background-color: #1f1f23;
+    color: #f4f4f5;
+    padding: 0.5rem;
+}
+
 .modal__content .form-textarea {
     resize: vertical;
     min-height: 100px;

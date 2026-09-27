@@ -92,6 +92,123 @@ class StorageManager {
     }
 }
 
+// ========================================
+// Smart Designer (Non-AI) Knowledge Base
+// ========================================
+const ASO_PRESETS = {
+    productivity: {
+        name: 'HabitPro',
+        tagline: 'Build Habits That Stick',
+        taglineSub: 'The smarter, effortless way to organize your daily routine.',
+        feature1: 'Visual Streak Tracking',
+        feature1Sub: 'Stay motivated with daily streaks and progress charts.',
+        feature2: 'Smart Reminders & Widgets',
+        feature2Sub: 'Never miss a beat with timely home screen widgets.',
+        socialProof: 'Trusted by 100k+ High Achievers',
+        socialProofSub: 'Voted #1 productivity companion for focus and clarity.',
+        cta: 'Supercharge Your Focus',
+        ctaSub: 'Download free today on the App Store.'
+    },
+    fitness: {
+        name: 'ZenFit',
+        tagline: 'Transform Your Fitness',
+        taglineSub: 'Workouts, nutrition, and daily recovery in one place.',
+        feature1: 'Log Every Workout Instantly',
+        feature1Sub: 'Effortless logging for gym, running, and home sessions.',
+        feature2: 'In-Depth Body Analytics',
+        feature2Sub: 'Track heart rate zones, calories burned, and muscle strain.',
+        socialProof: 'Over 2 Million Workouts Logged',
+        socialProofSub: 'Join thousands crushing their fitness milestones every day.',
+        cta: 'Start Your Fitness Journey',
+        ctaSub: 'Download free and get fit today.'
+    },
+    finance: {
+        name: 'PocketLedger',
+        tagline: 'Master Your Money',
+        taglineSub: 'Automated expense tracking, smart budgets, and investments.',
+        feature1: 'Real-Time Expense Tracking',
+        feature1Sub: 'Categorize every transaction effortlessly with smart sync.',
+        feature2: 'Visual Budget Insights',
+        feature2Sub: 'Know exactly where your money goes every single month.',
+        socialProof: 'Bank-Grade 256-Bit Security',
+        socialProofSub: 'Over $50M managed safely by smart savers worldwide.',
+        cta: 'Take Control of Your Wealth',
+        ctaSub: 'Start free on the App Store.'
+    },
+    social: {
+        name: 'VibeCast',
+        tagline: 'Connect With What Matters',
+        taglineSub: 'Discover inspiring people and unforgettable moments around you.',
+        feature1: 'Instant Live Moments',
+        feature1Sub: 'Share real, unfiltered updates with your closest friends.',
+        feature2: 'Explore Vibrant Communities',
+        feature2Sub: 'Find events, creators, and conversations that inspire you.',
+        socialProof: 'Over 500,000 Active Members',
+        socialProofSub: 'Where genuine connections and real conversations happen daily.',
+        cta: 'Join the Community',
+        ctaSub: 'Download free and connect today.'
+    },
+    ecommerce: {
+        name: 'Shoply',
+        tagline: 'Shop What You Love',
+        taglineSub: 'Curated trending collections delivered right to your doorstep.',
+        feature1: '1-Tap Express Checkout',
+        feature1Sub: 'Lightning-fast orders with Apple Pay and real-time package tracking.',
+        feature2: 'Exclusive Member Drops',
+        feature2Sub: 'Unlock secret discounts, early access, and reward points.',
+        socialProof: '4.9 ★ Rating on 25k+ Reviews',
+        socialProofSub: 'Fast delivery and 100% satisfaction guaranteed.',
+        cta: 'Get 20% Off Your First Order',
+        ctaSub: 'Download the app and start exploring.'
+    },
+    education: {
+        name: 'BrainQuest',
+        tagline: 'Learn Anything, Faster',
+        taglineSub: 'Bite-sized interactive lessons engineered for long-term retention.',
+        feature1: 'Gamified Daily Challenges',
+        feature1Sub: 'Level up your skills with streaks, quizzes, and rewards.',
+        feature2: 'Personalized Study Paths',
+        feature2Sub: 'Adaptive learning that continuously adjusts to your speed.',
+        socialProof: '94% of Learners Report Higher Scores',
+        socialProofSub: 'Used and trusted by top students and universities worldwide.',
+        cta: 'Unlock Your Full Potential',
+        ctaSub: 'Start learning for free today.'
+    },
+    entertainment: {
+        name: 'CineStream',
+        tagline: 'Endless Entertainment',
+        taglineSub: 'Stream your favorite shows, music, and podcasts in crystal clarity.',
+        feature1: 'Ultra HD Offline Downloads',
+        feature1Sub: 'Take your favorite movies and shows anywhere, with zero buffering.',
+        feature2: 'Tailored Just For You',
+        feature2Sub: 'Discover new favorites with smart personalized recommendations.',
+        socialProof: 'Over 10 Million Hours Streamed',
+        socialProofSub: 'The top-rated streaming companion for film enthusiasts.',
+        cta: 'Start Streaming Now',
+        ctaSub: 'Download free and watch instantly.'
+    },
+    utilities: {
+        name: 'ToolBox Pro',
+        tagline: 'Powerful Tools, Simplified',
+        taglineSub: 'The ultimate all-in-one utility companion for everyday tasks.',
+        feature1: 'Lightning-Fast Performance',
+        feature1Sub: 'Engineered for speed, efficiency, and minimal battery usage.',
+        feature2: 'Custom 1-Tap Automation',
+        feature2Sub: 'Automate repetitive workflows with simple home screen shortcuts.',
+        socialProof: 'Featured as App of the Day',
+        socialProofSub: 'Trusted by over 300,000 developers, creators, and pros.',
+        cta: 'Streamline Your Daily Workflow',
+        ctaSub: 'Available now on the App Store.'
+    }
+};
+
+const STORY_FLOWS = {
+    classic: ['tilted-shadow', 'hero-left', 'minimal-top', 'multi-dynamic', 'centered-bottom'],
+    panorama: ['panorama-left', 'panorama-right', 'hero-right', 'spread', 'minimal-top'],
+    minimal: ['minimal-top', 'centered-bottom', 'hero-left', 'hero-right', 'big-screen'],
+    power: ['multi-dynamic', 'hero-left', 'spread', 'tilted-shadow', 'minimal-top']
+};
+
 class ScreenshotGenerator {
     constructor() {
         this.storage = new StorageManager();
@@ -321,46 +438,103 @@ class ScreenshotGenerator {
             if (e.target.files[0]) this.handleThirdImageUpload(e.target.files[0]);
         });
 
-        // App Icon Modal Upload
+        // App Icon Modal Upload (AI Modal)
         const appIconModalZone = document.getElementById('appIconUploadModalZone');
         const appIconModalInput = document.getElementById('appIconInputModal');
 
-        appIconModalZone.addEventListener('click', () => appIconModalInput.click());
-        appIconModalZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            appIconModalZone.style.borderColor = '#667eea';
-            appIconModalZone.style.background = '#f8faff';
-        });
-        appIconModalZone.addEventListener('dragleave', () => {
-            appIconModalZone.style.borderColor = '#e2e8f0';
-            appIconModalZone.style.background = '#f8faff';
-        });
-        appIconModalZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            appIconModalZone.style.borderColor = '#e2e8f0';
-            appIconModalZone.style.background = '#f8faff';
-            const file = e.dataTransfer.files[0];
-            if (file && file.type.startsWith('image/')) this.handleAppIconUpload(file);
-        });
-        appIconModalInput.addEventListener('change', (e) => {
-            if (e.target.files[0]) this.handleAppIconUpload(e.target.files[0]);
-        });
+        if (appIconModalZone && appIconModalInput) {
+            appIconModalZone.addEventListener('click', () => appIconModalInput.click());
+            appIconModalZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                appIconModalZone.style.borderColor = '#667eea';
+                appIconModalZone.style.background = '#f8faff';
+            });
+            appIconModalZone.addEventListener('dragleave', () => {
+                appIconModalZone.style.borderColor = '#e2e8f0';
+                appIconModalZone.style.background = '#f8faff';
+            });
+            appIconModalZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                appIconModalZone.style.borderColor = '#e2e8f0';
+                appIconModalZone.style.background = '#f8faff';
+                const file = e.dataTransfer.files[0];
+                if (file && file.type.startsWith('image/')) this.handleAppIconUpload(file);
+            });
+            appIconModalInput.addEventListener('change', (e) => {
+                if (e.target.files[0]) this.handleAppIconUpload(e.target.files[0]);
+            });
+        }
 
-        // Bulk Screenshots Upload
+        // App Icon Modal Upload (Smart Designer Modal)
+        const smartIconZone = document.getElementById('smartAppIconUploadZone');
+        const smartIconInput = document.getElementById('smartAppIconInput');
+
+        if (smartIconZone && smartIconInput) {
+            smartIconZone.addEventListener('click', () => smartIconInput.click());
+            smartIconZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                smartIconZone.style.borderColor = '#10b981';
+                smartIconZone.style.background = 'rgba(16, 185, 129, 0.08)';
+            });
+            smartIconZone.addEventListener('dragleave', () => {
+                smartIconZone.style.borderColor = '#52525b';
+                smartIconZone.style.background = '#27272a';
+            });
+            smartIconZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                smartIconZone.style.borderColor = '#52525b';
+                smartIconZone.style.background = '#27272a';
+                const file = e.dataTransfer.files[0];
+                if (file && file.type.startsWith('image/')) this.handleAppIconUpload(file);
+            });
+            smartIconInput.addEventListener('change', (e) => {
+                if (e.target.files[0]) this.handleAppIconUpload(e.target.files[0]);
+            });
+        }
+
+        // Bulk Screenshots Upload (AI Modal)
         const bulkZone = document.getElementById('bulkScreenshotsZone');
         const bulkInput = document.getElementById('bulkScreenshotsInput');
 
-        bulkZone.addEventListener('click', () => bulkInput.click());
-        bulkInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) this.handleBulkScreenshots(e.target.files);
-        });
-        bulkZone.addEventListener('dragover', (e) => { e.preventDefault(); bulkZone.style.background = '#f8faff'; });
-        bulkZone.addEventListener('dragleave', () => { bulkZone.style.background = '#27272a'; });
-        bulkZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            bulkZone.style.background = '#27272a';
-            if (e.dataTransfer.files.length > 0) this.handleBulkScreenshots(e.dataTransfer.files);
-        });
+        if (bulkZone && bulkInput) {
+            bulkZone.addEventListener('click', () => bulkInput.click());
+            bulkInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) this.handleBulkScreenshots(e.target.files);
+            });
+            bulkZone.addEventListener('dragover', (e) => { e.preventDefault(); bulkZone.style.background = '#f8faff'; });
+            bulkZone.addEventListener('dragleave', () => { bulkZone.style.background = '#27272a'; });
+            bulkZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                bulkZone.style.background = '#27272a';
+                if (e.dataTransfer.files.length > 0) this.handleBulkScreenshots(e.dataTransfer.files);
+            });
+        }
+
+        // Bulk Screenshots Upload (Smart Designer Modal)
+        const smartBulkZone = document.getElementById('smartBulkScreenshotsZone');
+        const smartBulkInput = document.getElementById('smartBulkScreenshotsInput');
+
+        if (smartBulkZone && smartBulkInput) {
+            smartBulkZone.addEventListener('click', () => smartBulkInput.click());
+            smartBulkInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) this.handleBulkScreenshots(e.target.files);
+            });
+            smartBulkZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                smartBulkZone.style.borderColor = '#10b981';
+                smartBulkZone.style.background = 'rgba(16, 185, 129, 0.08)';
+            });
+            smartBulkZone.addEventListener('dragleave', () => {
+                smartBulkZone.style.borderColor = '#52525b';
+                smartBulkZone.style.background = '#27272a';
+            });
+            smartBulkZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                smartBulkZone.style.borderColor = '#52525b';
+                smartBulkZone.style.background = '#27272a';
+                if (e.dataTransfer.files.length > 0) this.handleBulkScreenshots(e.dataTransfer.files);
+            });
+        }
 
         // Text inputs
         document.getElementById('headline').addEventListener('input', (e) => {
@@ -778,6 +952,70 @@ class ScreenshotGenerator {
             this.generateMagicConfig();
         });
 
+        // Smart Designer (Non-AI)
+        const smartDesignerBtn = document.getElementById('smartDesignerBtn');
+        if (smartDesignerBtn) {
+            smartDesignerBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                // If app icon is already set, ensure thumbnail shows in Smart Modal
+                if (this.settings.appIcon) {
+                    const smartZone = document.getElementById('smartAppIconUploadZone');
+                    if (smartZone && !smartZone.querySelector('img')) {
+                        smartZone.innerHTML = `<img src="${this.settings.appIcon.src}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 12px;">`;
+                    }
+                }
+
+                // If bulk screenshots are already loaded, populate preview container
+                const smartPreviewContainer = document.getElementById('smartBulkPreviewContainer');
+                if (smartPreviewContainer && smartPreviewContainer.children.length === 0 && this.aiUploadedImages.length > 0) {
+                    this.aiUploadedImages.forEach(img => {
+                        const thumb = document.createElement('div');
+                        thumb.style.minWidth = '40px';
+                        thumb.style.height = '60px';
+                        thumb.style.borderRadius = '4px';
+                        thumb.style.backgroundImage = `url(${img.src})`;
+                        thumb.style.backgroundSize = 'cover';
+                        thumb.style.border = '1px solid #10b981';
+                        smartPreviewContainer.appendChild(thumb);
+                    });
+                }
+
+                // Update category placeholders
+                const categorySelect = document.getElementById('smartAppCategory');
+                if (categorySelect) {
+                    this.updateSmartPlaceholders(categorySelect.value);
+                }
+
+                setTimeout(() => {
+                    document.getElementById('smartModal')?.classList.add('active');
+                }, 100);
+            });
+        }
+
+        document.getElementById('closeSmartModal')?.addEventListener('click', () => {
+            document.getElementById('smartModal')?.classList.remove('active');
+        });
+
+        document.getElementById('generateSmartConfigBtn')?.addEventListener('click', () => {
+            this.generateSmartConfig();
+        });
+
+        document.getElementById('smartAppCategory')?.addEventListener('change', (e) => {
+            this.updateSmartPlaceholders(e.target.value);
+        });
+
+        const smartBackdrop = document.getElementById('smartModal')?.querySelector('.modal__backdrop');
+        if (smartBackdrop) {
+            smartBackdrop.addEventListener('click', (e) => {
+                if (e.target === smartBackdrop) {
+                    e.stopPropagation();
+                    document.getElementById('smartModal')?.classList.remove('active');
+                }
+            });
+        }
+
 
 
         // App Store preview item click - switch to that screen
@@ -1007,12 +1245,17 @@ class ScreenshotGenerator {
             img.onload = () => {
                 this.settings.appIcon = img;
 
-                // Update UI (Modal)
+                // Update UI (AI Modal)
                 const modalZone = document.getElementById('appIconUploadModalZone');
                 if (modalZone) modalZone.innerHTML = `<img src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 12px;">`;
 
+                // Update UI (Smart Designer Modal)
+                const smartZone = document.getElementById('smartAppIconUploadZone');
+                if (smartZone) smartZone.innerHTML = `<img src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 12px;">`;
+
                 // Clear inputs
                 if (document.getElementById('appIconInputModal')) document.getElementById('appIconInputModal').value = '';
+                if (document.getElementById('smartAppIconInput')) document.getElementById('smartAppIconInput').value = '';
             };
             img.src = e.target.result;
         };
@@ -1023,7 +1266,10 @@ class ScreenshotGenerator {
         const fileArray = Array.from(files).filter(f => f.type.startsWith('image/'));
         this.aiUploadedImages = new Array(fileArray.length); // Pre-allocate to maintain order
         const previewContainer = document.getElementById('bulkPreviewContainer');
-        previewContainer.innerHTML = ''; // Clear previews
+        const smartPreviewContainer = document.getElementById('smartBulkPreviewContainer');
+
+        if (previewContainer) previewContainer.innerHTML = '';
+        if (smartPreviewContainer) smartPreviewContainer.innerHTML = '';
 
         // Show a loading indicator in the preview area
         const loader = document.createElement('div');
@@ -1049,15 +1295,29 @@ class ScreenshotGenerator {
                 };
                 img.src = e.target.result;
 
-                // Create thumbnail
-                const thumb = document.createElement('div');
-                thumb.style.minWidth = '40px';
-                thumb.style.height = '60px';
-                thumb.style.borderRadius = '4px';
-                thumb.style.backgroundImage = `url(${e.target.result})`;
-                thumb.style.backgroundSize = 'cover';
-                thumb.style.border = '1px solid #52525b';
-                previewContainer.appendChild(thumb);
+                // Create thumbnail for AI Modal
+                if (previewContainer) {
+                    const thumb = document.createElement('div');
+                    thumb.style.minWidth = '40px';
+                    thumb.style.height = '60px';
+                    thumb.style.borderRadius = '4px';
+                    thumb.style.backgroundImage = `url(${e.target.result})`;
+                    thumb.style.backgroundSize = 'cover';
+                    thumb.style.border = '1px solid #52525b';
+                    previewContainer.appendChild(thumb);
+                }
+
+                // Create thumbnail for Smart Designer Modal
+                if (smartPreviewContainer) {
+                    const thumb2 = document.createElement('div');
+                    thumb2.style.minWidth = '40px';
+                    thumb2.style.height = '60px';
+                    thumb2.style.borderRadius = '4px';
+                    thumb2.style.backgroundImage = `url(${e.target.result})`;
+                    thumb2.style.backgroundSize = 'cover';
+                    thumb2.style.border = '1px solid #10b981';
+                    smartPreviewContainer.appendChild(thumb2);
+                }
             };
             reader.readAsDataURL(file);
         });
@@ -1609,6 +1869,180 @@ class ScreenshotGenerator {
                 loadingOverlay.classList.remove('active');
             }, 500); // Small delay for smoothness
         }
+    }
+
+    generateSmartConfig() {
+        const appNameInput = document.getElementById('smartAppName')?.value.trim();
+        const categoryKey = document.getElementById('smartAppCategory')?.value || 'productivity';
+        const storyFlowKey = document.getElementById('smartStoryFlow')?.value || 'classic';
+        const colorStyle = document.getElementById('smartColorStyle')?.value || 'auto';
+
+        const customTagline = document.getElementById('smartTagline')?.value.trim();
+        const customFeature1 = document.getElementById('smartFeature1')?.value.trim();
+        const customFeature2 = document.getElementById('smartFeature2')?.value.trim();
+        const customSocialProof = document.getElementById('smartSocialProof')?.value.trim();
+
+        const preset = ASO_PRESETS[categoryKey] || ASO_PRESETS.productivity;
+        const appName = appNameInput || preset.name;
+
+        // Construct 5 narrative copy sets
+        const copySets = [
+            {
+                headline: customTagline || preset.tagline,
+                subheadline: customTagline
+                    ? `The smarter, effortless way to achieve your goals with ${appName}.`
+                    : preset.taglineSub.replace(/HabitPro|ZenFit|PocketLedger|VibeCast|Shoply|BrainQuest|CineStream|ToolBox Pro/g, appName)
+            },
+            {
+                headline: customFeature1 || preset.feature1,
+                subheadline: customFeature1
+                    ? `Designed to keep you focused and in control every day.`
+                    : preset.feature1Sub
+            },
+            {
+                headline: customFeature2 || preset.feature2,
+                subheadline: customFeature2
+                    ? `Everything you need, right at your fingertips.`
+                    : preset.feature2Sub
+            },
+            {
+                headline: customSocialProof || preset.socialProof,
+                subheadline: customSocialProof
+                    ? `Join a growing community that relies on ${appName}.`
+                    : preset.socialProofSub.replace(/HabitPro|ZenFit|PocketLedger|VibeCast|Shoply|BrainQuest|CineStream|ToolBox Pro/g, appName)
+            },
+            {
+                headline: `Get Started with ${appName}`,
+                subheadline: preset.ctaSub
+            }
+        ];
+
+        // Ensure 5 screens exist
+        if (this.screens.length < 5) {
+            while (this.screens.length < 5) {
+                this.screens.push({ ...this.screens[0] });
+            }
+        }
+
+        const flow = STORY_FLOWS[storyFlowKey] || STORY_FLOWS.classic;
+        const images = (this.aiUploadedImages && this.aiUploadedImages.length > 0) ? this.aiUploadedImages : [];
+
+        // Apply templates, copy, alignment, and screenshots
+        copySets.forEach((copy, idx) => {
+            const screen = this.screens[idx];
+            if (!screen) return;
+
+            screen.headline = copy.headline;
+            screen.subheadline = copy.subheadline;
+            screen.appName = appName;
+
+            const template = flow[idx] || 'minimal-top';
+            this.applyTemplateToScreen(template, screen);
+            screen.template = template;
+
+            // Intelligent Screenshot Assignment
+            if (images.length > 0) {
+                // If this is the right half of a panorama pair, share the same screenshot as previous screen
+                if (idx > 0 && template.startsWith('panorama-') && template.includes('right') && flow[idx - 1]?.startsWith('panorama-')) {
+                    screen.screenshot = this.screens[idx - 1].screenshot;
+                } else {
+                    screen.screenshot = images[idx % images.length];
+                }
+
+                // Multi-device template assignment (screenshot2 and screenshot3)
+                if (template === 'multi-screen' || template === 'multi-dynamic' || template === 'spread') {
+                    screen.screenshot2 = images[(idx + 1) % images.length];
+                    if (template === 'spread') {
+                        screen.screenshot3 = images[(idx + 2) % images.length];
+                    }
+                }
+            }
+        });
+
+        // Theme and Branding
+        if (colorStyle === 'auto') {
+            const sampleImg = this.settings.appIcon || (images.length > 0 ? images[0] : null);
+            if (sampleImg) {
+                const colors = this.extractColorsFromImage(sampleImg);
+                this.screens.forEach((screen, idx) => {
+                    screen.textColor = colors.text;
+                    screen.bgType = 'gradient';
+                    if (idx % 2 === 0) {
+                        screen.bgColor1 = colors.palette[0];
+                        screen.bgColor2 = colors.palette[1];
+                    } else {
+                        if (colors.palette[2]) {
+                            screen.bgColor1 = colors.palette[2];
+                            screen.bgColor2 = colors.palette[0];
+                        } else {
+                            screen.bgColor1 = colors.palette[1];
+                            screen.bgColor2 = colors.palette[0];
+                        }
+                    }
+                });
+            } else {
+                // Fallback default modern purple gradient
+                this.screens.forEach((screen, idx) => {
+                    screen.textColor = '#ffffff';
+                    screen.bgType = 'gradient';
+                    screen.bgColor1 = idx % 2 === 0 ? '#667eea' : '#764ba2';
+                    screen.bgColor2 = idx % 2 === 0 ? '#764ba2' : '#667eea';
+                });
+            }
+        } else {
+            const THEMES = {
+                purple: { bg1: '#667eea', bg2: '#764ba2', text: '#ffffff' },
+                blue: { bg1: '#4facfe', bg2: '#00f2fe', text: '#ffffff' },
+                dark: { bg1: '#1a1a1a', bg2: '#0f0f0f', text: '#ffffff' },
+                green: { bg1: '#43e97b', bg2: '#38f9d7', text: '#1a1a1a' },
+                pink: { bg1: '#f093fb', bg2: '#f5576c', text: '#ffffff' },
+                orange: { bg1: '#f5a623', bg2: '#f76b1c', text: '#1a1a1a' }
+            };
+            const theme = THEMES[colorStyle] || THEMES.purple;
+            this.screens.forEach((screen, idx) => {
+                screen.textColor = theme.text;
+                screen.bgType = 'gradient';
+                if (idx % 2 === 0) {
+                    screen.bgColor1 = theme.bg1;
+                    screen.bgColor2 = theme.bg2;
+                } else {
+                    screen.bgColor1 = theme.bg2;
+                    screen.bgColor2 = theme.bg1;
+                }
+            });
+        }
+
+        // Close modal
+        document.getElementById('smartModal')?.classList.remove('active');
+
+        // Render & switch to App Store preview
+        this.render();
+
+        document.getElementById('editViewBtn')?.classList.remove('active');
+        document.getElementById('previewViewBtn')?.classList.add('active');
+        const editView = document.getElementById('editView');
+        const previewView = document.getElementById('appstorePreview');
+        if (editView) editView.style.display = 'none';
+        if (previewView) previewView.style.display = 'flex';
+        this.renderAllScreens();
+
+        this.showToast('⚡️ 5 Screenshots generated instantly!', 'success');
+    }
+
+    updateSmartPlaceholders(categoryKey) {
+        const preset = ASO_PRESETS[categoryKey];
+        if (!preset) return;
+        const appNameEl = document.getElementById('smartAppName');
+        const taglineEl = document.getElementById('smartTagline');
+        const f1El = document.getElementById('smartFeature1');
+        const f2El = document.getElementById('smartFeature2');
+        const proofEl = document.getElementById('smartSocialProof');
+
+        if (appNameEl) appNameEl.placeholder = `e.g. ${preset.name}`;
+        if (taglineEl) taglineEl.placeholder = `e.g. ${preset.tagline}`;
+        if (f1El) f1El.placeholder = `e.g. ${preset.feature1}`;
+        if (f2El) f2El.placeholder = `e.g. ${preset.feature2}`;
+        if (proofEl) proofEl.placeholder = `e.g. ${preset.socialProof}`;
     }
 
     async callGemini(userInput, apiKey) {
