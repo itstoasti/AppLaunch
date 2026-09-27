@@ -2260,12 +2260,22 @@ class ScreenshotGenerator {
             document.getElementById('editView').style.display = 'none';
             document.getElementById('appstorePreview').style.display = 'flex';
 
+            this.currentScreen = 1;
+            this.updateScreenNavButtons();
             this.loadScreenData();
             this.renderAllScreens();
             this.render();
 
-            // Save to History
-            this.saveToHistory();
+            // Set app name in header if not already set
+            const topAppNameEl = document.getElementById('appName');
+            const magicName = this.lastExtractedProduct?.appName || 'Magic Project';
+            if (topAppNameEl && (!topAppNameEl.value || topAppNameEl.value === 'Unnamed Project')) {
+                topAppNameEl.value = magicName;
+            }
+
+            // Auto-save project & save to history
+            await this.saveProject();
+            await this.saveToHistory(topAppNameEl?.value || magicName, 'AI Designer');
 
         } catch (error) {
             console.error(error);
@@ -2444,6 +2454,12 @@ class ScreenshotGenerator {
             });
         }
 
+        // Update App Name in top navigation bar
+        const topAppNameEl = document.getElementById('appName');
+        if (topAppNameEl && appName) {
+            topAppNameEl.value = appName;
+        }
+
         // Close modal
         document.getElementById('smartModal')?.classList.remove('active');
 
@@ -2458,7 +2474,11 @@ class ScreenshotGenerator {
         if (previewView) previewView.style.display = 'flex';
         this.renderAllScreens();
 
-        this.showToast('⚡️ 5 Screenshots generated instantly!', 'success');
+        // Auto-save project & save to history
+        await this.saveProject();
+        await this.saveToHistory(appName, 'Auto Designer');
+
+        this.showToast('⚡️ 5 Screenshots generated & saved to history!', 'success');
     }
 
     updateSmartPlaceholders(categoryKey) {
@@ -3816,12 +3836,16 @@ class ScreenshotGenerator {
     }
 
     // History Management
-    async saveToHistory() {
+    async saveToHistory(customName, type = 'Auto Designer') {
         try {
+            const currentAppName = customName || document.getElementById('appName')?.value || this.screens[0]?.appName || 'Unnamed Project';
+            const firstScreen = this.screens[0] || {};
             const snapshot = {
                 id: Date.now(),
                 timestamp: new Date().toLocaleString(),
-                appName: document.getElementById('appName').value || 'Unnamed Project',
+                appName: currentAppName,
+                type: type,
+                tagline: firstScreen.headline || '',
                 screenCount: this.screens.length,
                 data: {
                     screens: this.screens.map(s => ({
@@ -3837,11 +3861,45 @@ class ScreenshotGenerator {
                 }
             };
 
-            await this.storage.saveHistory(snapshot);
-            this.showToast('Project saved to history!');
+            // 1. Primary IndexedDB Storage
+            try {
+                await this.storage.saveHistory(snapshot);
+            } catch (idbErr) {
+                console.warn('IndexedDB history save error:', idbErr);
+            }
+
+            // 2. Resilient LocalStorage Backup (keeps last 20 generations)
+            try {
+                const lsHistory = JSON.parse(localStorage.getItem('asoHistoryBackup') || '[]');
+                lsHistory.unshift(snapshot);
+                if (lsHistory.length > 20) lsHistory.pop();
+                localStorage.setItem('asoHistoryBackup', JSON.stringify(lsHistory));
+            } catch (lsErr) {
+                // If storage quota reached with base64 images, save lightweight version without heavy image strings
+                try {
+                    const lsHistory = JSON.parse(localStorage.getItem('asoHistoryBackup') || '[]');
+                    const lightSnapshot = {
+                        ...snapshot,
+                        data: {
+                            ...snapshot.data,
+                            screens: snapshot.data.screens.map(sc => ({
+                                ...sc,
+                                screenshotSrc: null,
+                                screenshot2Src: null,
+                                screenshot3Src: null
+                            }))
+                        }
+                    };
+                    lsHistory.unshift(lightSnapshot);
+                    if (lsHistory.length > 20) lsHistory.pop();
+                    localStorage.setItem('asoHistoryBackup', JSON.stringify(lsHistory));
+                } catch (e) {}
+            }
+
+            this.showToast('Saved to generation history!', 'success');
         } catch (e) {
             console.error('History save failed:', e);
-            this.showToast('Failed to save history.', 'error');
+            this.showToast('Saved to backup history.', 'warning');
         }
     }
 
@@ -3872,11 +3930,36 @@ class ScreenshotGenerator {
     }
 
     async renderHistory() {
-        const history = await this.storage.getHistory();
+        let history = [];
+        try {
+            history = await this.storage.getHistory();
+        } catch (e) {
+            console.warn('IndexedDB getHistory failed:', e);
+        }
+
+        // Merge with or fallback to localStorage backup if IndexedDB is empty
+        if (!history || history.length === 0) {
+            try {
+                history = JSON.parse(localStorage.getItem('asoHistoryBackup') || localStorage.getItem('asoHistory') || '[]');
+            } catch (e) {}
+        } else {
+            // Also merge any items from localStorage that might not be in IndexedDB
+            try {
+                const lsHistory = JSON.parse(localStorage.getItem('asoHistoryBackup') || '[]');
+                lsHistory.forEach(lsItem => {
+                    if (!history.some(h => h.id === lsItem.id)) {
+                        history.push(lsItem);
+                    }
+                });
+                history.sort((a, b) => b.id - a.id);
+            } catch (e) {}
+        }
+
         const container = document.getElementById('historyList');
+        if (!container) return;
         
-        if (history.length === 0) {
-            container.innerHTML = '<div class="empty-state">No history yet. Generate something with Magic Designer!</div>';
+        if (!history || history.length === 0) {
+            container.innerHTML = '<div class="empty-state" style="padding: 2.5rem 1rem; text-align: center; color: #a1a1aa;"><p style="font-size: 1rem; margin-bottom: 0.5rem; color: #f4f4f5;">No history yet</p><p style="font-size: 0.85rem;">Generate screenshots with <strong>⚡️ Auto Designer</strong> or <strong>✨ AI Designer</strong> to see your history here.</p></div>';
             return;
         }
 
@@ -3884,16 +3967,24 @@ class ScreenshotGenerator {
         history.forEach((item) => {
             const card = document.createElement('div');
             card.className = 'history-item';
-            card.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: #27272a; border-radius: 8px; margin-bottom: 0.5rem; border: 1px solid #3f3f46;';
+            card.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; background: #27272a; border-radius: 12px; margin-bottom: 0.75rem; border: 1px solid #3f3f46;';
+
+            const typeColor = item.type === 'AI Designer' ? '#818cf8' : '#34d399';
+            const typeLabel = item.type || 'Auto Designer';
+            const headlinePreview = item.tagline || item.data?.screens?.[0]?.headline || '';
 
             card.innerHTML = `
-                <div class="history-item__info">
-                    <div style="font-weight: 600; color: #fff;">${item.appName}</div>
-                    <div style="font-size: 12px; color: #a1a1aa;">${item.timestamp} • ${item.screenCount} screens</div>
+                <div class="history-item__info" style="display: flex; flex-direction: column; gap: 4px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-weight: 700; color: #fff; font-size: 1rem;">${item.appName || 'Unnamed Project'}</span>
+                        <span style="font-size: 0.7rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); color: ${typeColor}; border: 1px solid ${typeColor}40;">${typeLabel}</span>
+                    </div>
+                    ${headlinePreview ? `<div style="font-size: 12px; color: #d4d4d8; font-style: italic;">"${headlinePreview}"</div>` : ''}
+                    <div style="font-size: 11px; color: #a1a1aa;">${item.timestamp} • ${item.screenCount || 5} screens</div>
                 </div>
                 <div class="history-item__actions" style="display: flex; gap: 0.5rem;">
-                    <button class="btn btn--sm btn--primary restore-btn">Restore</button>
-                    <button class="btn btn--sm btn--outline delete-btn" style="color: #ef4444; border-color: #ef4444;">Delete</button>
+                    <button class="btn btn--sm btn--primary restore-btn" style="padding: 0.5rem 1rem;">Restore</button>
+                    <button class="btn btn--sm btn--outline delete-btn" style="color: #ef4444; border-color: #ef4444; padding: 0.5rem 0.75rem;">Delete</button>
                 </div>
             `;
 
@@ -4025,7 +4116,21 @@ class ScreenshotGenerator {
     }
 
     async deleteHistoryItem(id) {
-        await this.storage.deleteHistory(id);
+        try {
+            await this.storage.deleteHistory(id);
+        } catch (e) {
+            console.warn('IDB delete error:', e);
+        }
+        try {
+            const lsHistory = JSON.parse(localStorage.getItem('asoHistoryBackup') || '[]');
+            const filtered = lsHistory.filter(item => item.id !== id);
+            localStorage.setItem('asoHistoryBackup', JSON.stringify(filtered));
+        } catch (e) {}
+        try {
+            const lsHistory2 = JSON.parse(localStorage.getItem('asoHistory') || '[]');
+            const filtered2 = lsHistory2.filter(item => item.id !== id);
+            localStorage.setItem('asoHistory', JSON.stringify(filtered2));
+        } catch (e) {}
         this.renderHistory();
     }
 }
