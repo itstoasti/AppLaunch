@@ -801,6 +801,7 @@
                 <span class="hint" id="smartUrlStatus" style="display: block; margin-top: 0.4rem; color: #a1a1aa; font-size: 0.75rem;">
                     Paste a GitHub or website URL to automatically extract your app name, tagline, features, and icon.
                 </span>
+                <div id="smartExtractedPreview" style="display: none; margin-top: 0.75rem; padding: 0.75rem 1rem; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px;"></div>
             </div>
 
             <!-- Grid Layout -->
@@ -892,33 +893,68 @@
                     </div>
                 </div>
 
-                <!-- Optional Details Accordion for Custom Copy -->
+                <!-- Custom Storyboard Copy Section -->
                 <div class="modal-full-width" style="margin-top: 0.5rem;">
-                    <details class="sidebar-category" style="background: #202023; border: 1px solid #3f3f46; border-radius: 12px; padding: 0.75rem 1rem;">
+                    <details open class="sidebar-category" style="background: #202023; border: 1px solid #3f3f46; border-radius: 12px; padding: 0.75rem 1rem;">
                         <summary style="cursor: pointer; font-size: 0.85rem; font-weight: 600; color: #d4d4d8; outline: none; display: flex; align-items: center; justify-content: space-between;">
-                            <span>✍️ Customize Storyboard Copy (Optional)</span>
-                            <span style="font-size: 0.75rem; color: #a1a1aa; font-weight: normal;">Defaults pre-filled by category</span>
+                            <span>✍️ Screenshot Storyboard Copy & Features</span>
+                            <span style="font-size: 0.75rem; color: #34d399; font-weight: 500;">Auto-filled from product URL</span>
                         </summary>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.75rem;">
-                            <div class="form-group" style="margin-bottom: 0;">
-                                <label class="form-label" style="font-size: 0.75rem;">Screen 1: Main Tagline / Hook</label>
-                                <input type="text" class="form-input" id="smartTagline" placeholder="e.g. Build habits that stick">
+                        <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.75rem;">
+                            <!-- Screen 1 -->
+                            <div style="background: #18181b; padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid #27272a;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+                                    <span style="font-size: 0.75rem; font-weight: 700; color: #34d399;">Screen 1: The Hook (Value Prop)</span>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 0.5rem;">
+                                    <input type="text" class="form-input" id="smartTagline" placeholder="Headline e.g. Launch Apps in Flow">
+                                    <input type="text" class="form-input" id="smartHookSub" placeholder="Benefit e.g. Turn screenshots into App Store-ready assets">
+                                </div>
                             </div>
-                            <div class="form-group" style="margin-bottom: 0;">
-                                <label class="form-label" style="font-size: 0.75rem;">Screen 2: Core Feature</label>
-                                <input type="text" class="form-input" id="smartFeature1" placeholder="e.g. Visual streak tracking">
+                            <!-- Screen 2 -->
+                            <div style="background: #18181b; padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid #27272a;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+                                    <span style="font-size: 0.75rem; font-weight: 700; color: #38bdf8;">Screen 2: Core Feature 1</span>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 0.5rem;">
+                                    <input type="text" class="form-input" id="smartFeature1" placeholder="Feature 1 Title e.g. Real-Time Visual Editor">
+                                    <input type="text" class="form-input" id="smartFeature1Sub" placeholder="Feature 1 Benefit e.g. Drag-and-drop interface with 3D device frames">
+                                </div>
                             </div>
-                            <div class="form-group" style="margin-bottom: 0;">
-                                <label class="form-label" style="font-size: 0.75rem;">Screen 3: Secondary Feature</label>
-                                <input type="text" class="form-input" id="smartFeature2" placeholder="e.g. Smart daily reminders">
+                            <!-- Screen 3 -->
+                            <div style="background: #18181b; padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid #27272a;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+                                    <span style="font-size: 0.75rem; font-weight: 700; color: #a78bfa;">Screen 3: Core Feature 2</span>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 0.5rem;">
+                                    <input type="text" class="form-input" id="smartFeature2" placeholder="Feature 2 Title e.g. Smart AI Intelligence">
+                                    <input type="text" class="form-input" id="smartFeature2Sub" placeholder="Feature 2 Benefit e.g. Automated brand color extraction & ASO copy">
+                                </div>
                             </div>
-                            <div class="form-group" style="margin-bottom: 0;">
-                                <label class="form-label" style="font-size: 0.75rem;">Screen 4: Social Proof / Metric</label>
-                                <input type="text" class="form-input" id="smartSocialProof" placeholder="e.g. Trusted by 50,000+ users">
+                            <!-- Screen 4 -->
+                            <div style="background: #18181b; padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid #27272a;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+                                    <span style="font-size: 0.75rem; font-weight: 700; color: #f472b6;">Screen 4: Core Feature 3</span>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 0.5rem;">
+                                    <input type="text" class="form-input" id="smartFeature3" placeholder="Feature 3 Title e.g. Instant Translations">
+                                    <input type="text" class="form-input" id="smartFeature3Sub" placeholder="Feature 3 Benefit e.g. Go global with one-click multi-language localization">
+                                </div>
+                            </div>
+                            <!-- Screen 5 -->
+                            <div style="background: #18181b; padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid #27272a;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+                                    <span style="font-size: 0.75rem; font-weight: 700; color: #fbbf24;">Screen 5: The Close / CTA</span>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 0.5rem;">
+                                    <input type="text" class="form-input" id="smartSocialProof" placeholder="CTA Headline e.g. Ready to Ship Your App?">
+                                    <input type="text" class="form-input" id="smartCtaSub" placeholder="CTA Subheadline e.g. Export store-ready assets in minutes. Free to start.">
+                                </div>
                             </div>
                         </div>
                     </details>
                 </div>
+            </div>
             </div>
 
             <div class="modal__actions" style="margin-top: 1.5rem;">
@@ -952,6 +988,7 @@
                 <span class="hint" id="aiUrlStatus" style="display: block; margin-top: 0.4rem; color: #a1a1aa; font-size: 0.75rem;">
                     Paste a link to automatically fill your app description, features, and brand icon for AI design.
                 </span>
+                <div id="aiExtractedPreview" style="display: none; margin-top: 0.75rem; padding: 0.75rem 1rem; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 8px;"></div>
             </div>
 
             <!-- Grid Layout -->
@@ -995,9 +1032,9 @@
                 <!-- Full Width Bottom -->
                 <div class="modal-full-width">
                     <div class="form-group" style="margin-bottom: 0;">
-                        <label class="form-label">App Description</label>
-                        <textarea class="form-input form-textarea short" id="aiAppDescription" rows="2"
-                            placeholder="Describe your app features and vibe..."></textarea>
+                        <label class="form-label">App Product Blueprint & Features</label>
+                        <textarea class="form-input form-textarea" id="aiAppDescription" rows="5"
+                            placeholder="Describe your app features, key selling points, and target vibe..."></textarea>
                     </div>
                 </div>
             </div>

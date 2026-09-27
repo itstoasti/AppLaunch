@@ -1719,237 +1719,240 @@ class ScreenshotGenerator {
             targetUrl = 'https://' + targetUrl;
         }
 
-        // Check if GitHub Repository URL
-        const ghMatch = targetUrl.match(/(?:https?:\/\/)?(?:www\.)?github\.com\/([^\/]+)\/([^\/\?#]+)/i);
+        // 1. Try Vercel Serverless Function First (Server-side, no CORS limits)
+        if (typeof window !== 'undefined' && window.location?.origin && /^https?:/i.test(window.location.origin)) {
+            try {
+                const apiRes = await fetch(`/api/fetch-url?url=${encodeURIComponent(targetUrl)}`);
+                if (apiRes.ok) {
+                    const data = await apiRes.json();
+                    if (data && data.appName && data.features?.length > 0) {
+                        this.lastExtractedProduct = data;
+                        return data;
+                    }
+                }
+            } catch (err) {
+                console.warn('Local /api/fetch-url call failed, trying client fallback:', err);
+            }
+        }
 
+        // 2. Client Fallback: Parse GitHub or Website directly via CORS-enabled public proxies
+        const ghMatch = targetUrl.match(/(?:github\.com\/)([^\/]+)\/([^\/\?#]+)/i);
+        let result = null;
         if (ghMatch) {
             const owner = ghMatch[1];
             const repo = ghMatch[2].replace(/\.git$/i, '');
-            return await this.fetchGitHubRepoInfo(owner, repo, targetUrl);
+            result = await this.clientFetchGitHub(owner, repo, targetUrl);
+        } else {
+            result = await this.clientFetchWebsite(targetUrl);
         }
 
-        // Otherwise standard website / landing page
-        return await this.fetchWebsiteInfo(targetUrl);
+        this.lastExtractedProduct = result;
+        return result;
     }
 
-    async fetchGitHubRepoInfo(owner, repo, originalUrl) {
-        // 1. Fetch Repository Details via GitHub REST API (Public, CORS-enabled)
+    async clientFetchGitHub(owner, repo, originalUrl) {
         let repoData = {};
         try {
             const res = await fetch(`https://api.github.com/repos/${owner}/${repo}`);
-            if (res.ok) {
-                repoData = await res.json();
-            }
+            if (res.ok) repoData = await res.json();
         } catch (e) {
-            console.warn('GitHub API fetch failed, trying raw README:', e);
+            console.warn('GitHub API failed:', e);
         }
 
-        // 2. Fetch Raw README (CORS-enabled)
-        let readmeText = '';
-        const branches = ['HEAD', 'main', 'master'];
-        for (const branch of branches) {
-            try {
-                const readmeRes = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/${branch}/README.md`);
-                if (readmeRes.ok) {
-                    readmeText = await readmeRes.text();
-                    break;
-                }
-            } catch (e) {
-                // continue to next branch
-            }
-        }
-
-        // Format clean App Name from repo name
-        const rawName = repoData.name || repo;
-        let appName = rawName
+        let cleanName = (repoData.name || repo)
             .replace(/[-_.]+/g, ' ')
             .replace(/\b(app|ios|android|mobile|client|web)\b/gi, '')
             .trim()
             .split(' ')
             .filter(Boolean)
             .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-            .join(' ') || rawName;
+            .join(' ') || repo;
 
-        let description = repoData.description || '';
-        let features = [];
-        let iconUrl = repoData.owner?.avatar_url || null;
-
-        if (readmeText) {
-            // Find first H1 or headline
-            const titleMatch = readmeText.match(/^#\s+(.+)$/m);
-            if (titleMatch && !appName) {
-                appName = titleMatch[1].trim();
-            }
-
-            // Extract description / intro paragraph
-            const paragraphs = readmeText
-                .split(/\n\s*\n/)
-                .map(p => p.trim())
-                .filter(p => !p.startsWith('#') && !p.startsWith('[!') && !p.startsWith('![') && p.length > 20);
-
-            if (paragraphs.length > 0 && !description) {
-                description = paragraphs[0].replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1').replace(/[`*]/g, '');
-            }
-
-            // Extract features from list items
-            const bulletMatches = readmeText.match(/^[*-]\s+\*\*([^*]+)\*\*[:\s]*(.+)?$/gm) ||
-                readmeText.match(/^[*-]\s+([^:\n]{4,60})$/gm);
-
-            if (bulletMatches) {
-                bulletMatches.slice(0, 5).forEach(m => {
-                    const clean = m.replace(/^[*-]\s+/, '').replace(/\*\*/g, '').trim();
-                    if (clean && clean.length > 3 && clean.length < 60) {
-                        features.push(clean);
-                    }
-                });
-            }
-
-            // Look for logo in README
-            const logoMatch = readmeText.match(/!\[(?:logo|icon)\]\(([^)]+)\)/i) ||
-                readmeText.match(/<img[^>]+src=["']([^"']*(?:logo|icon)[^"']*)["']/i);
-            if (logoMatch) {
-                let foundLogo = logoMatch[1];
-                if (!/^https?:\/\//i.test(foundLogo)) {
-                    foundLogo = `https://raw.githubusercontent.com/${owner}/${repo}/HEAD/${foundLogo.replace(/^\.\//, '')}`;
-                }
-                iconUrl = foundLogo;
-            }
-        }
-
-        if (!description) {
-            description = `${appName} - Built for seamless and high performance experience.`;
-        }
-
-        const tagline = features[0] || description.split('.')[0] || `The ultimate companion for ${appName}`;
-        if (features.length === 0) {
-            features = ['Fast, Intuitive Design', 'Effortless Workflows', 'Built with Privacy First'];
-        }
-
-        const combinedText = `${appName} ${description} ${features.join(' ')} ${(repoData.topics || []).join(' ')}`.toLowerCase();
-        const category = this.detectCategoryFromText(combinedText);
-
-        return {
-            appName,
-            tagline,
-            description,
-            features: features.slice(0, 4),
-            category,
-            iconUrl,
+        let result = {
+            appName: cleanName,
+            title: cleanName,
+            tagline: repoData.description || `Build better with ${cleanName}`,
+            hookHeadline: repoData.description ? repoData.description.split('.')[0] : cleanName,
+            description: repoData.description || '',
+            features: [],
+            iconUrl: repoData.owner?.avatar_url || null,
+            category: 'productivity',
             url: originalUrl
         };
-    }
 
-    async fetchWebsiteInfo(targetUrl) {
-        let title = '';
-        let description = '';
-        let features = [];
-        let iconUrl = null;
-        let domain = '';
-
-        try {
-            const parsedUrl = new URL(targetUrl);
-            domain = parsedUrl.hostname;
-            iconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
-        } catch (e) {
-            // URL parse error
-        }
-
-        // Try Vercel Serverless Function first (when running on HTTP/HTTPS server)
-        let fetchedData = null;
-        if (typeof window !== 'undefined' && window.location?.origin && /^https?:/i.test(window.location.origin)) {
+        // If repo has homepage, scrape the live landing page for real marketing copy!
+        if (repoData.homepage && /^https?:\/\//i.test(repoData.homepage)) {
             try {
-                const apiRes = await fetch(`/api/fetch-url?url=${encodeURIComponent(targetUrl)}`);
-                if (apiRes.ok) {
-                    fetchedData = await apiRes.json();
-                    if (fetchedData.title) title = fetchedData.title;
-                    if (fetchedData.description) description = fetchedData.description;
-                    if (fetchedData.features?.length > 0) features = fetchedData.features;
-                    if (fetchedData.icon) iconUrl = fetchedData.icon;
-                }
-            } catch (e) {
-                // Ignore and fall through to Jina reader
-            }
-        }
-
-        // If local API didn't return title/description, use Jina Reader API (CORS enabled)
-        if (!title || !description) {
-            try {
-                const jinaRes = await fetch(`https://r.jina.ai/${targetUrl}`);
+                const jinaRes = await fetch(`https://r.jina.ai/${repoData.homepage}`);
                 if (jinaRes.ok) {
                     const text = await jinaRes.text();
-
-                    // Parse Title
-                    const titleMatch = text.match(/Title:\s*(.+)/);
-                    if (titleMatch) {
-                        title = titleMatch[1].trim();
-                    }
-
-                    // Parse Description
-                    const mdIndex = text.indexOf('Markdown Content:');
-                    const content = mdIndex !== -1 ? text.slice(mdIndex + 17) : text;
-                    const paragraphs = content
-                        .split(/\n\s*\n/)
-                        .map(p => p.trim().replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1').trim())
-                        .filter(p => p.length > 25 && !p.startsWith('#') && !p.startsWith('!') && !p.startsWith('['));
-
-                    if (paragraphs.length > 0 && !description) {
-                        description = paragraphs[0].replace(/\n+/g, ' ');
-                    }
-
-                    // Parse Headings / Features
-                    const lines = content.split('\n');
-                    for (const line of lines) {
-                        const trimmed = line.trim();
-                        if (trimmed.startsWith('### ') || trimmed.startsWith('## ')) {
-                            const heading = trimmed.replace(/^#+\s*/, '').replace(/[^\w\s&'-]/g, '').trim();
-                            if (heading.length > 3 && heading.length < 50 && !features.includes(heading) &&
-                                !/^(menu|nav|navigation|footer|header|sign in|sign up|log in|pricing|contact)$/i.test(heading)) {
-                                features.push(heading);
-                            }
-                        }
-                    }
+                    const parsed = this.parseClientMarkdown(text, repoData.homepage);
+                    if (parsed.appName && parsed.appName !== 'Magic Mockup') result.appName = parsed.appName;
+                    if (parsed.hookHeadline) result.hookHeadline = parsed.hookHeadline;
+                    if (parsed.description) result.description = parsed.description;
+                    if (parsed.features.length > 0) result.features = parsed.features;
+                    if (parsed.iconUrl) result.iconUrl = parsed.iconUrl;
                 }
-            } catch (err) {
-                console.warn('Jina reader fetch failed:', err);
+            } catch (e) {}
+        }
+
+        // If features still needed, fetch raw README or index.html from repo
+        if (result.features.length < 3) {
+            const branches = ['HEAD', 'main', 'master'];
+            for (const branch of branches) {
+                try {
+                    const readmeRes = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/${branch}/README.md`);
+                    if (readmeRes.ok) {
+                        const md = await readmeRes.text();
+                        const parsed = this.parseClientMarkdown(md, originalUrl);
+                        if (parsed.description && !result.description) result.description = parsed.description;
+                        parsed.features.forEach(f => {
+                            if (!result.features.some(rf => rf.title.toLowerCase() === f.title.toLowerCase())) {
+                                result.features.push(f);
+                            }
+                        });
+                    }
+                    if (result.features.length >= 3) break;
+                } catch (e) {}
             }
         }
 
-        // Format clean app name from title
-        let appName = title.split(/[|\-–:•]/)[0].trim() || domain.replace(/^www\./, '').split('.')[0];
+        result.category = this.detectCategoryFromText(`${result.appName} ${result.hookHeadline} ${result.description} ${result.features.map(f => f.title).join(' ')}`);
+        return result;
+    }
+
+    async clientFetchWebsite(targetUrl) {
+        let text = '';
+        try {
+            const jinaRes = await fetch(`https://r.jina.ai/${targetUrl}`);
+            if (jinaRes.ok) {
+                text = await jinaRes.text();
+            }
+        } catch (e) {}
+
+        const parsed = this.parseClientMarkdown(text, targetUrl);
+        return parsed;
+    }
+
+    parseClientMarkdown(text, pageUrl) {
+        let domain = '';
+        try {
+            domain = new URL(pageUrl).hostname;
+        } catch (e) {}
+
+        const blacklist = /^(menu|nav|navigation|footer|header|sign in|sign up|log in|pricing|contact|cookies|privacy|terms|copyright|rights reserved|explore all|start free|get started|now in|frequently asked|latest commit|folders and files|history)/i;
+
+        const titleMatch = text.match(/Title:\s*(.+)/);
+        let title = titleMatch ? titleMatch[1].trim() : '';
+        let appName = title ? title.split(/[|\-–:•]/)[0].trim() : domain.replace(/^www\./, '').split('.')[0];
         appName = appName.charAt(0).toUpperCase() + appName.slice(1);
 
-        if (!description) {
-            description = `The modern, powerful way to experience ${appName}.`;
+        const mdIndex = text.indexOf('Markdown Content:');
+        const content = mdIndex !== -1 ? text.slice(mdIndex + 17) : text;
+
+        // Extract paragraphs for description
+        const paragraphs = content
+            .split(/\n\s*\n/)
+            .map(p => p.replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1').replace(/[*_`]/g, '').trim())
+            .filter(p => p.length > 25 && !p.startsWith('#') && !p.startsWith('!') && !p.startsWith('['));
+
+        let description = paragraphs.length > 0 ? paragraphs[0].replace(/\n+/g, ' ') : '';
+
+        // Extract features (headings followed by text or bold bullet items)
+        const features = [];
+        const lines = content.split('\n');
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            // Check headings
+            if (/^#{2,4}\s+/.test(line)) {
+                const heading = line.replace(/^#+\s*/, '').replace(/[*_`]/g, '').trim();
+                if (heading.length > 2 && heading.length < 60 && !blacklist.test(heading)) {
+                    // Check next line for description
+                    let nextDesc = '';
+                    for (let j = i + 1; j < Math.min(i + 4, lines.length); j++) {
+                        const nextLine = lines[j].trim();
+                        if (nextLine && !nextLine.startsWith('#') && !nextLine.startsWith('!') && nextLine.length > 10) {
+                            nextDesc = nextLine.replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1').replace(/[*_`]/g, '').trim();
+                            break;
+                        }
+                    }
+                    if (nextDesc && !features.some(f => f.title.toLowerCase() === heading.toLowerCase())) {
+                        features.push({ title: heading, description: nextDesc });
+                    }
+                }
+            }
+            // Check bold bullets: - **Feature**: Description
+            const bMatch = line.match(/^[*-]\s+\*\*([^*]+)\*\*[:\s-]+(.+)/);
+            if (bMatch) {
+                const bTitle = bMatch[1].trim();
+                const bDesc = bMatch[2].replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1').replace(/[*_`]/g, '').trim();
+                if (bTitle.length > 2 && bTitle.length < 60 && bDesc.length > 8 && !blacklist.test(bTitle)) {
+                    if (!features.some(f => f.title.toLowerCase() === bTitle.toLowerCase())) {
+                        features.push({ title: bTitle, description: bDesc });
+                    }
+                }
+            }
         }
 
-        const tagline = features[0] || description.split('.')[0] || `Everything you need with ${appName}`;
-        if (features.length === 0) {
-            features = ['Intuitive User Interface', 'Real-Time Performance', 'Streamlined Workflows'];
-        }
-
-        const combinedText = `${appName} ${title} ${description} ${features.join(' ')}`.toLowerCase();
-        const category = this.detectCategoryFromText(combinedText);
-
+        let hook = features[0]?.title || appName;
         return {
             appName,
-            tagline,
+            title,
+            tagline: description || `Experience ${appName}`,
+            hookHeadline: hook,
             description,
-            features: features.slice(0, 4),
-            category,
-            iconUrl,
-            url: targetUrl
+            features: features.slice(0, 8),
+            iconUrl: domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=128` : null,
+            category: this.detectCategoryFromText(`${appName} ${title} ${description} ${features.map(f => f.title).join(' ')}`),
+            url: pageUrl
         };
     }
 
     detectCategoryFromText(text) {
-        if (/workout|fitness|gym|health|calorie|training|runner|exercise|sport|diet|meditation|sleep|step/i.test(text)) return 'fitness';
-        if (/budget|finance|money|expense|crypto|invest|bank|wallet|stock|trading|accounting|cash/i.test(text)) return 'finance';
-        if (/habit|task|todo|routine|organize|note|calendar|focus|productivity|schedule|reminder|workflow/i.test(text)) return 'productivity';
-        if (/social|chat|friend|community|message|dating|connect|network|stream|creator|feed/i.test(text)) return 'social';
-        if (/shop|store|product|discount|order|cart|checkout|ecommerce|retail|delivery|food/i.test(text)) return 'ecommerce';
-        if (/learn|study|quiz|course|student|education|lesson|language|school|academic|flashcard/i.test(text)) return 'education';
-        if (/music|video|movie|film|stream|podcast|game|entertainment|play|show|radio/i.test(text)) return 'entertainment';
+        if (/workout|fitness|gym|health|calorie|training|runner|exercise|sport|diet|meditation|sleep|step|yoga/i.test(text)) return 'fitness';
+        if (/budget|finance|money|expense|crypto|invest|bank|wallet|stock|trading|accounting|cash|invoice/i.test(text)) return 'finance';
+        if (/habit|task|todo|routine|organize|note|calendar|focus|productivity|schedule|reminder|workflow|screenshot|mockup|design|developer/i.test(text)) return 'productivity';
+        if (/social|chat|friend|community|message|dating|connect|network|stream|creator|feed|post/i.test(text)) return 'social';
+        if (/shop|store|product|discount|order|cart|checkout|ecommerce|retail|delivery|food|clothing/i.test(text)) return 'ecommerce';
+        if (/learn|study|quiz|course|student|education|lesson|language|school|academic|flashcard|book/i.test(text)) return 'education';
+        if (/music|video|movie|film|stream|podcast|game|entertainment|play|show|radio|tv|audio/i.test(text)) return 'entertainment';
         return 'utilities';
+    }
+
+    renderExtractedPreview(info, containerId, isAi = false) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        const accentColor = isAi ? '#818cf8' : '#34d399';
+        const badgeBg = isAi ? 'rgba(99, 102, 241, 0.18)' : 'rgba(16, 185, 129, 0.18)';
+
+        let featureChips = '';
+        if (info.features && info.features.length > 0) {
+            featureChips = info.features.slice(0, 5).map((f, i) => `
+                <div style="background: #18181b; border: 1px solid #27272a; border-radius: 6px; padding: 6px 10px; margin-top: 4px; font-size: 0.75rem; display: flex; flex-direction: column; gap: 2px;">
+                    <div style="font-weight: 700; color: ${accentColor}; font-size: 0.78rem;">
+                        Slide ${i + 1}: ${f.title}
+                    </div>
+                    <div style="color: #a1a1aa; line-height: 1.35;">
+                        ${f.description}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        container.style.display = 'block';
+        container.innerHTML = `
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                <span style="font-size: 0.8rem; font-weight: 700; color: #f4f4f5;">
+                    ✓ Extracted: <span style="color: ${accentColor};">${info.appName}</span>
+                </span>
+                <span style="background: ${badgeBg}; color: ${accentColor}; font-size: 0.7rem; font-weight: 600; padding: 2px 8px; border-radius: 999px;">
+                    ${info.features?.length || 0} features found
+                </span>
+            </div>
+            ${info.description ? `<div style="font-size: 0.75rem; color: #d4d4d8; margin-bottom: 6px; line-height: 1.4;"><strong>Hook:</strong> ${info.hookHeadline || info.description}</div>` : ''}
+            ${featureChips}
+        `;
     }
 
     async handleUrlImport(type, showToastOnSuccess = true) {
@@ -1970,7 +1973,7 @@ class ScreenshotGenerator {
             btn.innerHTML = `<span class="loading-spinner-sm" style="display:inline-block; width:12px; height:12px; border:2px solid #ccc; border-top-color:#fff; border-radius:50%; animation:spin 0.6s linear infinite; margin-right:4px;"></span> Fetching...`;
         }
         if (statusEl) {
-            statusEl.textContent = 'Analyzing URL and extracting app details...';
+            statusEl.textContent = 'Extracting product features and value props...';
             statusEl.style.color = '#38bdf8';
         }
 
@@ -1981,23 +1984,43 @@ class ScreenshotGenerator {
             if (isAi) {
                 const descEl = document.getElementById('aiAppDescription');
                 if (descEl) {
-                    descEl.value = `App Name: ${info.appName}\nTagline: ${info.tagline}\nAbout: ${info.description}\nKey Features:\n${info.features.map(f => '- ' + f).join('\n')}`;
+                    descEl.value = `App Name: ${info.appName}\nCategory: ${info.category}\nCore Value Prop: ${info.hookHeadline || info.tagline}\nAbout: ${info.description || info.tagline}\n\nKEY PRODUCT FEATURES (SHOWCASE ON INDIVIDUAL SLIDES):\n${info.features.map((f, i) => `${i + 1}. Feature: ${f.title}\n   Benefit: ${f.description}`).join('\n')}`;
                 }
+                this.renderExtractedPreview(info, 'aiExtractedPreview', true);
             } else {
-                // 2. Populate Smart Modal fields
+                // 2. Populate Smart Modal fields with real product features and descriptions!
                 const nameEl = document.getElementById('smartAppName');
                 const catEl = document.getElementById('smartAppCategory');
                 const taglineEl = document.getElementById('smartTagline');
+                const hookSubEl = document.getElementById('smartHookSub');
                 const f1El = document.getElementById('smartFeature1');
+                const f1SubEl = document.getElementById('smartFeature1Sub');
                 const f2El = document.getElementById('smartFeature2');
+                const f2SubEl = document.getElementById('smartFeature2Sub');
+                const f3El = document.getElementById('smartFeature3');
+                const f3SubEl = document.getElementById('smartFeature3Sub');
                 const proofEl = document.getElementById('smartSocialProof');
+                const ctaSubEl = document.getElementById('smartCtaSub');
 
                 if (nameEl) nameEl.value = info.appName;
                 if (catEl && info.category) catEl.value = info.category;
-                if (taglineEl) taglineEl.value = info.tagline;
-                if (f1El && info.features[0]) f1El.value = info.features[0];
-                if (f2El && info.features[1]) f2El.value = info.features[1];
-                if (proofEl && info.features[2]) proofEl.value = info.features[2];
+                if (taglineEl) taglineEl.value = info.hookHeadline || info.tagline;
+                if (hookSubEl) hookSubEl.value = info.description || info.tagline;
+
+                const feats = info.features || [];
+                if (f1El && feats[0]) f1El.value = feats[0].title;
+                if (f1SubEl && feats[0]) f1SubEl.value = feats[0].description;
+
+                if (f2El && feats[1]) f2El.value = feats[1].title;
+                if (f2SubEl && feats[1]) f2SubEl.value = feats[1].description;
+
+                if (f3El && feats[2]) f3El.value = feats[2].title;
+                if (f3SubEl && feats[2]) f3SubEl.value = feats[2].description;
+
+                if (proofEl) proofEl.value = feats[3] ? feats[3].title : `Ready to Ship Your App?`;
+                if (ctaSubEl) ctaSubEl.value = feats[3] ? feats[3].description : `Start designing with ${info.appName} today. Free to try.`;
+
+                this.renderExtractedPreview(info, 'smartExtractedPreview', false);
             }
 
             // 3. Load App Icon if available and not yet uploaded
@@ -2015,12 +2038,12 @@ class ScreenshotGenerator {
             }
 
             if (statusEl) {
-                statusEl.textContent = `✓ Imported: ${info.appName} (${info.category}) with ${info.features.length} features!`;
+                statusEl.textContent = `✓ Extracted ${info.appName} (${info.category}) with ${info.features?.length || 0} product features!`;
                 statusEl.style.color = '#34d399';
             }
 
             if (showToastOnSuccess) {
-                this.showToast(`Imported info for ${info.appName}!`, 'success');
+                this.showToast(`Extracted ${info.features?.length || 0} features for ${info.appName}!`, 'success');
             }
 
             return info;
@@ -2092,29 +2115,32 @@ class ScreenshotGenerator {
 
             // 1. Text Prompt
             const textPrompt = `
-                Act as a Senior App Store Optimization Expert and Lead Designer.
-                Your goal is to design a high-converting App Store story for this app.
+                Act as a Senior App Store Optimization (ASO) Expert and Lead Designer.
+                Your task is to design a high-converting, 5-star App Store screenshot story for this app.
                 
-                App Description: "${description}"
+                APP PRODUCT DETAILS & EXTRACTED FEATURES:
+                ${description}
 
                 I have attached ${totalUploaded} screenshots of the app.
                 
-                TASK:
-                1. ANALYZE all ${totalUploaded} attached screenshots. Identify what each screen shows.
-                2. DESIGN exactly ${Math.min(totalUploaded, 10)} screens. Use one unique screenshot for each screen.
-                3. Tell a cohesive narrative from start to finish.
+                CRITICAL INSTRUCTION - USE THE ACTUAL PRODUCT FEATURES:
+                You MUST use the exact product features, capabilities, and benefits described in the APP PRODUCT DETAILS above.
+                DO NOT invent generic or vague filler copy (like "Stay productive" or "Easy to use").
                 
-                NARRATIVE STRUCTURE:
-                - Screen 1: THE HOOK (The biggest value prop).
-                - Screens 2-N: Features, Solutions, and Benefits.
-                - Final Screen: THE CLOSE (CTA).
+                SCREEN-BY-SCREEN REQUIREMENTS:
+                - Screen 1 (The Hook): A punchy headline capturing the core value proposition (2-4 words), with a compelling subheadline explaining the primary transformation for the user (6-12 words).
+                - Screen 2: Must focus specifically on Feature 1 from the product details. Use a punchy headline (2-4 words) and subheadline explaining that feature's specific benefit (6-12 words).
+                - Screen 3: Must focus specifically on Feature 2 from the product details. Headline (2-4 words) and subheadline explaining that feature's benefit.
+                - Screen 4: Must focus specifically on Feature 3 from the product details. Headline (2-4 words) and subheadline explaining that feature's benefit.
+                - Screen 5 (or Final Screen): Feature 4 or The Close / Call To Action, highlighting why the user should download today.
+                - If more than 5 screens: Map remaining features sequentially to screens.
 
                 AVAILABLE TEMPLATES: 'minimal-top', 'centered-bottom', 'hero-left', 'hero-right', 'tilted-shadow', 'spread', 'multi-dynamic', 'panorama-left' (must pair with 'panorama-right').
 
                 STRICT RULES:
                 1. You MUST return exactly ${Math.min(totalUploaded, 10)} screen objects in the array.
                 2. Use each uploaded image exactly once.
-                3. Assign 'screenshotIndex' (0 to ${totalUploaded - 1}) to match your text.
+                3. Assign 'screenshotIndex' (0 to ${totalUploaded - 1}) to match the screenshot that best illustrates that feature.
                 
                 Return ONLY a valid JSON array of objects:
                 [
@@ -2122,7 +2148,7 @@ class ScreenshotGenerator {
                         "headline": "...", 
                         "subheadline": "...", 
                         "template": "...",
-                        "textAlign": "...", 
+                        "textAlign": "center", 
                         "deviceShadow": "large",
                         "screenshotIndex": 0 
                     },
@@ -2245,44 +2271,61 @@ class ScreenshotGenerator {
         const colorStyle = document.getElementById('smartColorStyle')?.value || 'auto';
 
         const customTagline = document.getElementById('smartTagline')?.value.trim();
+        const customHookSub = document.getElementById('smartHookSub')?.value.trim();
         const customFeature1 = document.getElementById('smartFeature1')?.value.trim();
+        const customFeature1Sub = document.getElementById('smartFeature1Sub')?.value.trim();
         const customFeature2 = document.getElementById('smartFeature2')?.value.trim();
+        const customFeature2Sub = document.getElementById('smartFeature2Sub')?.value.trim();
+        const customFeature3 = document.getElementById('smartFeature3')?.value.trim();
+        const customFeature3Sub = document.getElementById('smartFeature3Sub')?.value.trim();
         const customSocialProof = document.getElementById('smartSocialProof')?.value.trim();
+        const customCtaSub = document.getElementById('smartCtaSub')?.value.trim();
+
+        const product = this.lastExtractedProduct || {};
+        const pFeatures = product.features || [];
 
         const preset = ASO_PRESETS[categoryKey] || ASO_PRESETS.productivity;
-        const appName = appNameInput || preset.name;
+        const appName = appNameInput || product.appName || preset.name;
 
-        // Construct 5 narrative copy sets
+        // Construct 5 narrative copy sets using extracted product data as priority
         const copySets = [
             {
-                headline: customTagline || preset.tagline,
-                subheadline: customTagline
-                    ? `The smarter, effortless way to achieve your goals with ${appName}.`
-                    : preset.taglineSub.replace(/HabitPro|ZenFit|PocketLedger|VibeCast|Shoply|BrainQuest|CineStream|ToolBox Pro/g, appName)
+                headline: customTagline || product.hookHeadline || preset.tagline,
+                subheadline: customHookSub || product.description || preset.taglineSub.replace(/HabitPro|ZenFit|PocketLedger|VibeCast|Shoply|BrainQuest|CineStream|ToolBox Pro/g, appName)
             },
             {
-                headline: customFeature1 || preset.feature1,
-                subheadline: customFeature1
-                    ? `Designed to keep you focused and in control every day.`
-                    : preset.feature1Sub
+                headline: customFeature1 || pFeatures[0]?.title || preset.feature1,
+                subheadline: customFeature1Sub || pFeatures[0]?.description || preset.feature1Sub
             },
             {
-                headline: customFeature2 || preset.feature2,
-                subheadline: customFeature2
-                    ? `Everything you need, right at your fingertips.`
-                    : preset.feature2Sub
+                headline: customFeature2 || pFeatures[1]?.title || preset.feature2,
+                subheadline: customFeature2Sub || pFeatures[1]?.description || preset.feature2Sub
             },
             {
-                headline: customSocialProof || preset.socialProof,
-                subheadline: customSocialProof
-                    ? `Join a growing community that relies on ${appName}.`
-                    : preset.socialProofSub.replace(/HabitPro|ZenFit|PocketLedger|VibeCast|Shoply|BrainQuest|CineStream|ToolBox Pro/g, appName)
+                headline: customFeature3 || pFeatures[2]?.title || preset.socialProof,
+                subheadline: customFeature3Sub || pFeatures[2]?.description || preset.socialProofSub.replace(/HabitPro|ZenFit|PocketLedger|VibeCast|Shoply|BrainQuest|CineStream|ToolBox Pro/g, appName)
             },
             {
-                headline: `Get Started with ${appName}`,
-                subheadline: preset.ctaSub
+                headline: customSocialProof || (pFeatures[3] ? pFeatures[3].title : `Ready to Ship Your App?`),
+                subheadline: customCtaSub || (pFeatures[3] ? pFeatures[3].description : preset.ctaSub)
             }
         ];
+
+        // For any extra screens beyond 5, assign remaining extracted features
+        for (let i = 5; i < this.screens.length; i++) {
+            const extraFeature = pFeatures[i - 1];
+            if (extraFeature) {
+                copySets.push({
+                    headline: extraFeature.title,
+                    subheadline: extraFeature.description
+                });
+            } else {
+                copySets.push({
+                    headline: `Experience ${appName}`,
+                    subheadline: `Join thousands enjoying a seamless experience every day.`
+                });
+            }
+        }
 
         // Ensure 5 screens exist
         if (this.screens.length < 5) {
@@ -2401,15 +2444,27 @@ class ScreenshotGenerator {
         if (!preset) return;
         const appNameEl = document.getElementById('smartAppName');
         const taglineEl = document.getElementById('smartTagline');
+        const hookSubEl = document.getElementById('smartHookSub');
         const f1El = document.getElementById('smartFeature1');
+        const f1SubEl = document.getElementById('smartFeature1Sub');
         const f2El = document.getElementById('smartFeature2');
+        const f2SubEl = document.getElementById('smartFeature2Sub');
+        const f3El = document.getElementById('smartFeature3');
+        const f3SubEl = document.getElementById('smartFeature3Sub');
         const proofEl = document.getElementById('smartSocialProof');
+        const ctaSubEl = document.getElementById('smartCtaSub');
 
         if (appNameEl) appNameEl.placeholder = `e.g. ${preset.name}`;
         if (taglineEl) taglineEl.placeholder = `e.g. ${preset.tagline}`;
+        if (hookSubEl) hookSubEl.placeholder = `e.g. ${preset.taglineSub}`;
         if (f1El) f1El.placeholder = `e.g. ${preset.feature1}`;
+        if (f1SubEl) f1SubEl.placeholder = `e.g. ${preset.feature1Sub}`;
         if (f2El) f2El.placeholder = `e.g. ${preset.feature2}`;
-        if (proofEl) proofEl.placeholder = `e.g. ${preset.socialProof}`;
+        if (f2SubEl) f2SubEl.placeholder = `e.g. ${preset.feature2Sub}`;
+        if (f3El) f3El.placeholder = `e.g. ${preset.socialProof}`;
+        if (f3SubEl) f3SubEl.placeholder = `e.g. ${preset.socialProofSub}`;
+        if (proofEl) proofEl.placeholder = `e.g. Ready to Experience ${preset.name}?`;
+        if (ctaSubEl) ctaSubEl.placeholder = `e.g. ${preset.ctaSub}`;
     }
 
     async callGemini(userInput, apiKey) {
