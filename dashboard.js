@@ -203,7 +203,7 @@ const ASO_PRESETS = {
 };
 
 const STORY_FLOWS = {
-    classic: ['tilted-shadow', 'hero-left', 'minimal-top', 'multi-dynamic', 'centered-bottom'],
+    classic: ['minimal-top', 'hero-left', 'tilted-shadow', 'multi-dynamic', 'centered-bottom'],
     panorama: ['panorama-left', 'panorama-right', 'hero-right', 'spread', 'minimal-top'],
     minimal: ['minimal-top', 'centered-bottom', 'hero-left', 'hero-right', 'big-screen'],
     power: ['multi-dynamic', 'hero-left', 'spread', 'tilted-shadow', 'minimal-top']
@@ -685,6 +685,7 @@ class ScreenshotGenerator {
             const screen = this.screens[this.currentScreen - 1];
             screen.deviceRotation = parseInt(e.target.value);
             this.render();
+            this.renderAllScreens();
             this.saveProject();
         });
         document.getElementById('textPosition').addEventListener('input', (e) => {
@@ -1444,6 +1445,11 @@ class ScreenshotGenerator {
             document.getElementById('devicePosition').value = this.settings.devicePosition || 0;
         }
 
+        const rotationInput = document.getElementById('deviceRotation');
+        if (rotationInput) {
+            rotationInput.value = screen.deviceRotation !== undefined ? screen.deviceRotation : (this.settings.deviceRotation || 0);
+        }
+
         if (screen.textPosition !== undefined) {
             document.getElementById('textPosition').value = screen.textPosition;
         } else {
@@ -1454,7 +1460,12 @@ class ScreenshotGenerator {
         // Update template selection
         if (screen.template) {
             document.querySelectorAll('.template-card-layout').forEach(c => c.classList.remove('active'));
-            document.querySelector(`.template-card-layout[data-template="${screen.template}"]`)?.classList.add('active');
+            const activeCard = document.querySelector(`.template-card-layout[data-template="${screen.template}"]`);
+            if (activeCard) {
+                activeCard.classList.add('active');
+                const parentDetails = activeCard.closest('details');
+                if (parentDetails) parentDetails.open = true;
+            }
         }
 
         // Update alignment buttons
@@ -2150,14 +2161,14 @@ class ScreenshotGenerator {
                 DO NOT invent generic or vague filler copy (like "Stay productive" or "Easy to use").
                 
                 SCREEN-BY-SCREEN REQUIREMENTS:
-                - Screen 1 (The Hook): A punchy headline capturing the core value proposition (2-4 words), with a compelling subheadline explaining the primary transformation for the user (6-12 words).
+                - Screen 1 (The Hook): MUST use 'minimal-top' template for the primary hook (clean headline at top, straight phone bezel centered). A punchy headline capturing the core value proposition (2-4 words), with a compelling subheadline explaining the primary transformation for the user (6-12 words).
                 - Screen 2: Must focus specifically on Feature 1 from the product details. Use a punchy headline (2-4 words) and subheadline explaining that feature's specific benefit (6-12 words).
                 - Screen 3: Must focus specifically on Feature 2 from the product details. Headline (2-4 words) and subheadline explaining that feature's benefit.
                 - Screen 4: Must focus specifically on Feature 3 from the product details. Headline (2-4 words) and subheadline explaining that feature's benefit.
                 - Screen 5 (or Final Screen): Feature 4 or The Close / Call To Action, highlighting why the user should download today.
                 - If more than 5 screens: Map remaining features sequentially to screens.
 
-                AVAILABLE TEMPLATES: 'minimal-top', 'centered-bottom', 'hero-left', 'hero-right', 'tilted-shadow', 'spread', 'multi-dynamic', 'panorama-left' (must pair with 'panorama-right').
+                AVAILABLE TEMPLATES: 'minimal-top' (required for screen 1), 'centered-bottom', 'hero-left', 'hero-right', 'tilted-shadow', 'spread', 'multi-dynamic', 'panorama-left' (must pair with 'panorama-right').
 
                 STRICT RULES:
                 1. You MUST return exactly ${Math.min(totalUploaded, 10)} screen objects in the array.
@@ -2463,6 +2474,11 @@ class ScreenshotGenerator {
         // Close modal
         document.getElementById('smartModal')?.classList.remove('active');
 
+        // Reset to Screen 1 & load its data into editor
+        this.currentScreen = 1;
+        this.updateScreenNavButtons();
+        this.loadScreenData();
+
         // Render & switch to App Store preview
         this.render();
 
@@ -2617,17 +2633,37 @@ class ScreenshotGenerator {
             'big-screen': { layout: 'big-screen', textAlign: 'center', deviceRotation: 0 }
         };
 
-        if (templateSettings[template]) {
-            screen.layout = templateSettings[template].layout;
-            screen.textAlign = templateSettings[template].textAlign;
-            if (templateSettings[template].deviceRotation !== undefined) {
-                screen.deviceRotation = templateSettings[template].deviceRotation;
-            }
+        const templateAliases = {
+            'minimal': 'minimal-top',
+            'top': 'minimal-top',
+            'centered': 'centered-bottom',
+            'center': 'centered-bottom',
+            'bottom': 'centered-bottom',
+            'hero': 'hero-left',
+            'left': 'hero-left',
+            'right': 'hero-right',
+            'tilted': 'tilted-shadow',
+            'tilt': 'tilted-shadow',
+            'angle': 'tilted-shadow',
+            'angled': 'tilted-shadow',
+            'hand': 'hand-crop',
+            'multi': 'multi-screen',
+            'dynamic': 'multi-dynamic',
+            'pair': 'multi-dynamic'
+        };
 
-            // Update alignment buttons
+        const resolved = templateAliases[template] || template;
+        const config = templateSettings[resolved] || templateSettings['minimal-top'];
+
+        screen.template = resolved;
+        screen.layout = config.layout;
+        screen.textAlign = config.textAlign;
+        screen.deviceRotation = config.deviceRotation !== undefined ? config.deviceRotation : 0;
+
+        // If this screen is currently active in the editor, sync sidebar controls
+        if (screen === this.screens[this.currentScreen - 1]) {
             document.querySelectorAll('.align-btn').forEach(b => b.classList.remove('active'));
-            document.querySelector(`.align-btn[data-align="${templateSettings[template].textAlign}"]`)?.classList.add('active');
-            
+            document.querySelector(`.align-btn[data-align="${config.textAlign}"]`)?.classList.add('active');
             this.loadScreenData();
         }
     }
@@ -2720,80 +2756,66 @@ class ScreenshotGenerator {
         }
     }
 
-    // Render all screens for App Store preview
-    renderAllScreens() {
-        const canvases = document.querySelectorAll('.appstore-canvas');
-        const savedScreen = this.currentScreen;
-        const savedImage = this.screenshotImage;
-        const savedSettings = this._currentSettings;
+    // Unified Screen Rendering Engine - Shared by Preview, Editor, and Export
+    renderScreenToCanvas(canvas, screen, screenIndex = 0, totalScreens = 1) {
+        if (!canvas || !screen) return;
 
-        canvases.forEach((canvas, index) => {
-            const screenIndex = index;
-            const screen = this.screens[screenIndex];
+        const ctx = canvas.getContext('2d');
+        const w = this.width;
+        const h = this.height;
 
-            // Hide canvas if no screen exists
-            const previewItem = canvas.closest('.appstore-preview__item');
-            if (!screen) {
-                if (previewItem) previewItem.style.display = 'none';
-                return;
-            }
-            if (previewItem) previewItem.style.display = 'flex';
+        // Set canvas resolution
+        if (canvas.width !== w) canvas.width = w;
+        if (canvas.height !== h) canvas.height = h;
 
-            const ctx = canvas.getContext('2d');
-            const w = this.width;
-            const h = this.height;
+        // Merge per-screen settings with global defaults
+        const s = {
+            ...this.settings,
+            layout: screen.layout || this.settings.layout || 'text-top',
+            template: screen.template || this.settings.template || 'minimal-top',
+            textAlign: screen.textAlign || this.settings.textAlign || 'center',
+            bgType: screen.bgType || this.settings.bgType || 'gradient',
+            bgColor1: screen.bgColor1 || this.settings.bgColor1 || '#c8e0f4',
+            bgColor2: screen.bgColor2 || this.settings.bgColor2 || '#a8d0ea',
+            textColor: screen.textColor || this.settings.textColor || '#1a1a1a',
+            fontSize: screen.fontSize || this.settings.fontSize || 48,
+            deviceScale: screen.deviceScale || this.settings.deviceScale || 70,
+            devicePosition: screen.devicePosition !== undefined ? screen.devicePosition : (this.settings.devicePosition || 0),
+            deviceRotation: screen.deviceRotation !== undefined ? screen.deviceRotation : (this.settings.deviceRotation || 0),
+            textPosition: screen.textPosition !== undefined ? screen.textPosition : (this.settings.textPosition || 0),
+        };
 
-            // Use per-screen settings
-            const s = {
-                ...this.settings,
-                layout: screen.layout || this.settings.layout,
-                template: screen.template || this.settings.template,
-                textAlign: screen.textAlign || this.settings.textAlign,
-                bgType: screen.bgType || this.settings.bgType,
-                bgColor1: screen.bgColor1 || this.settings.bgColor1,
-                bgColor2: screen.bgColor2 || this.settings.bgColor2,
-                textColor: screen.textColor || this.settings.textColor,
-                fontSize: screen.fontSize || this.settings.fontSize,
-                fontSize: screen.fontSize || this.settings.fontSize,
-                deviceScale: screen.deviceScale || this.settings.deviceScale,
-                textPosition: screen.textPosition !== undefined ? screen.textPosition : this.settings.textPosition,
-                devicePosition: screen.devicePosition !== undefined ? screen.devicePosition : this.settings.devicePosition
-            };
+        // Clear canvas
+        ctx.clearRect(0, 0, w, h);
 
-            // Set canvas size
-            canvas.width = w;
-            canvas.height = h;
-
-            // Clear canvas
-            ctx.clearRect(0, 0, w, h);
-
-            // Draw background
-            const bgMode = this.backgroundMode;
-
-            if (bgMode === 'panorama' && this.globalBackground) {
-                this.drawGlobalBackground(ctx, w, h, screenIndex, canvases.length);
+        // Draw background
+        const bgMode = this.backgroundMode;
+        if (bgMode === 'panorama' && this.globalBackground) {
+            this.drawGlobalBackground(ctx, w, h, screenIndex, totalScreens);
+        } else {
+            if (s.bgType === 'gradient') {
+                const gradient = ctx.createLinearGradient(0, 0, w, h);
+                gradient.addColorStop(0, s.bgColor1);
+                gradient.addColorStop(1, s.bgColor2);
+                ctx.fillStyle = gradient;
             } else {
-                // Per-screen background (Classic)
-                if (s.bgType === 'gradient') {
-                    const gradient = ctx.createLinearGradient(0, 0, w, h);
-                    gradient.addColorStop(0, s.bgColor1);
-                    gradient.addColorStop(1, s.bgColor2);
-                    ctx.fillStyle = gradient;
-                } else {
-                    ctx.fillStyle = s.bgColor1;
-                }
-                ctx.fillRect(0, 0, w, h);
+                ctx.fillStyle = s.bgColor1;
             }
+            ctx.fillRect(0, 0, w, h);
+        }
 
-            // Temporarily switch context and image for this screen
-            const originalCanvas = this.canvas;
-            const originalCtx = this.ctx;
-            this.canvas = canvas;
-            this.ctx = ctx;
-            this.screenshotImage = screen.screenshot;
-            this._currentSettings = s;
+        // Point rendering state to target canvas
+        const originalCanvas = this.canvas;
+        const originalCtx = this.ctx;
+        const originalImg = this.screenshotImage;
+        const originalSettings = this._currentSettings;
 
-            // Draw based on per-screen layout
+        this.canvas = canvas;
+        this.ctx = ctx;
+        this.screenshotImage = screen.screenshot;
+        this._currentSettings = s;
+
+        try {
             switch (s.layout) {
                 case 'text-top':
                     this.drawTextTopLayout(screen);
@@ -2828,114 +2850,53 @@ class ScreenshotGenerator {
                 case 'multi-dynamic':
                     this.drawMultiDynamicLayout(screen);
                     break;
+                case 'spread':
+                    this.drawSpreadLayout(screen);
+                    break;
+                case 'big-screen':
+                    this.drawBigScreenLayout(screen);
+                    break;
                 default:
                     this.drawCenteredLayout(screen);
             }
-
-            // Restore original context
+        } finally {
             this.canvas = originalCanvas;
             this.ctx = originalCtx;
-        });
-
-        // Restore saved state
-        this.currentScreen = savedScreen;
-        this.screenshotImage = savedImage;
-        this._currentSettings = savedSettings;
+            this.screenshotImage = originalImg;
+            this._currentSettings = originalSettings;
+        }
     }
 
-    render(specificScreen) {
-        const ctx = this.ctx;
-        const w = this.width;
-        const h = this.height;
-        const screen = specificScreen || this.screens[this.currentScreen - 1];
-
-        // Merge screen settings with global settings (screen settings take priority)
-        const s = {
-            ...this.settings,
-            layout: screen.layout || this.settings.layout,
-            template: screen.template || this.settings.template,
-            textAlign: screen.textAlign || this.settings.textAlign,
-            bgType: screen.bgType || this.settings.bgType,
-            bgColor1: screen.bgColor1 || this.settings.bgColor1,
-            bgColor2: screen.bgColor2 || this.settings.bgColor2,
-            textColor: screen.textColor || this.settings.textColor,
-            fontSize: screen.fontSize || this.settings.fontSize,
-            fontSize: screen.fontSize || this.settings.fontSize,
-            deviceScale: screen.deviceScale || this.settings.deviceScale,
-            devicePosition: screen.devicePosition !== undefined ? screen.devicePosition : this.settings.devicePosition,
-            deviceRotation: screen.deviceRotation !== undefined ? screen.deviceRotation : this.settings.deviceRotation,
-            textPosition: screen.textPosition !== undefined ? screen.textPosition : this.settings.textPosition,
-        };
-
-        // Store merged settings for layout functions to use
-        this._currentSettings = s;
-
-        // Clear canvas
-        ctx.clearRect(0, 0, w, h);
-
-        // Draw background
-        const bgMode = this.backgroundMode;
-
-        // For Edit View (Single Screen)
-        // We need to simulate the slice for the CURRENT screen
-        // currentScreen is 1-based, so index is currentScreen - 1
-        const totalScreens = this.screens.length; // Or should we assume 5? Let's use actual count.
-
-        if (bgMode === 'panorama' && this.globalBackground) {
-            this.drawGlobalBackground(ctx, w, h, this.currentScreen - 1, totalScreens);
-        } else {
-            if (s.bgType === 'gradient') {
-                const gradient = ctx.createLinearGradient(0, 0, w, h);
-                gradient.addColorStop(0, s.bgColor1);
-                gradient.addColorStop(1, s.bgColor2);
-                ctx.fillStyle = gradient;
-            } else {
-                ctx.fillStyle = s.bgColor1;
+    // Render all screens for App Store preview
+    renderAllScreens() {
+        const canvases = document.querySelectorAll('.appstore-canvas');
+        canvases.forEach((canvas, index) => {
+            const screen = this.screens[index];
+            const previewItem = canvas.closest('.appstore-preview__item');
+            if (!screen) {
+                if (previewItem) previewItem.style.display = 'none';
+                return;
             }
-            ctx.fillRect(0, 0, w, h);
-        }
+            if (previewItem) previewItem.style.display = 'flex';
+            this.renderScreenToCanvas(canvas, screen, index, canvases.length);
+        });
+    }
 
-        // Draw based on layout
-        switch (s.layout) {
-            case 'text-top':
-                this.drawTextTopLayout(screen);
-                break;
-            case 'text-left':
-                this.drawTextLeftLayout(screen);
-                break;
-            case 'text-right':
-                this.drawTextRightLayout(screen);
-                break;
-            case 'panorama-left':
-                this.drawPanoramaLeftLayout(screen);
-                break;
-            case 'panorama-right':
-                this.drawPanoramaRightLayout(screen);
-                break;
-            case 'panorama-tilted-left':
-                this.drawPanoramaTiltedLeftLayout(screen);
-                break;
-            case 'panorama-tilted-right':
-                this.drawPanoramaTiltedRightLayout(screen);
-                break;
+    // Render single screen (used in editor)
+    render(specificScreen) {
+        const screen = specificScreen || this.screens[this.currentScreen - 1];
+        if (!screen) return;
+        const screenIndex = specificScreen ? this.screens.indexOf(specificScreen) : (this.currentScreen - 1);
+        
+        // Render on editor canvas
+        this.renderScreenToCanvas(this.canvas, screen, Math.max(0, screenIndex), this.screens.length);
 
-            case 'tilted':
-                this.drawTiltedLayout(screen);
-                break;
-            case 'multi-device':
-                this.drawMultiDeviceLayout(screen);
-                break;
-            case 'multi-dynamic':
-                this.drawMultiDynamicLayout(screen);
-                break;
-            case 'spread':
-                this.drawSpreadLayout(screen);
-                break;
-            case 'big-screen':
-                this.drawBigScreenLayout(screen);
-                break;
-            default:
-                this.drawCenteredLayout(screen);
+        // Also live-sync preview canvas if in edit mode (not during export)
+        if (this.canvas === document.getElementById('previewCanvas')) {
+            const previewCanvases = document.querySelectorAll('.appstore-canvas');
+            if (previewCanvases[screenIndex]) {
+                this.renderScreenToCanvas(previewCanvases[screenIndex], screen, screenIndex, previewCanvases.length);
+            }
         }
     }
 
